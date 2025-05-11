@@ -2,6 +2,8 @@
 system_cfg.py
 Base configuration class for SystemBase. Uses configclass decorator for style consistency.
 """
+from dataclasses import MISSING
+from .system_base import SystemBase
 
 def configclass(cls):
     """Decorator to mark config classes (for style consistency)."""
@@ -10,8 +12,16 @@ def configclass(cls):
 
 @configclass
 class SystemCfg:
+    """Base configuration class for SystemBase."""
+    
+    class_type: type[SystemBase] = MISSING
+    """The associated system class.
+    
+    The class should inherit from :class:`torchcontrol.system.SystemBase`.
     """
-    Base configuration class for SystemBase.
-    """
-    def __init__(self):
-        pass
+    
+    num_envs: int | None = None
+    """Number of environments to create."""
+    
+    dt: float = 0.01
+    """Time step for simulation."""

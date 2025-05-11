@@ -48,3 +48,21 @@ class SystemBase(nn.Module, metaclass=abc.ABCMeta):
         Step the system forward (like gym.Env.step). Should be implemented by subclass.
         """
         pass
+    
+    @property
+    def num_envs(self):
+        """
+        Number of environments in the system.
+        Returns:
+            int: Number of environments.
+        """
+        return self.cfg.num_envs
+
+    @property
+    def dt(self):
+        """
+        Time step for the system.
+        Returns:
+            float: Time step.
+        """
+        return self.cfg.dt

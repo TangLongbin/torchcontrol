@@ -1,6 +1,6 @@
 import os
 import matplotlib.pyplot as plt
-from torchcontrol.plants import InputOutput, InputOutputCfg
+from torchcontrol.plants import InputOutputSystem, InputOutputSystemCfg
 
 if __name__ == "__main__":
     # Example usage
@@ -11,10 +11,10 @@ if __name__ == "__main__":
     dt = 0.01
 
     # Create a configuration object
-    cfg = InputOutputCfg(num=num, den=den, dt=dt)
+    cfg = InputOutputSystemCfg(num=num, den=den, dt=dt)
 
     # Create a plant object using the configuration
-    plant = InputOutput(cfg)
+    plant = InputOutputSystem(cfg)
     
     # Step response
     T = 20
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     os.makedirs(save_dir, exist_ok=True)
     plt.plot([t * dt for t in range(int(T / dt))], y, label='Output')
     plt.plot([t * dt for t in range(int(T / dt))], [u] * int(T / dt), 'r--', label='Input')
-    plt.title("Step Response of InputOutput Plant")
+    plt.title("Step Response of InputOutputSystem Plant")
     plt.xlabel("Time (s)")
     plt.ylabel("Output")
     plt.grid()

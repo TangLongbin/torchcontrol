@@ -1,15 +1,15 @@
 from .plant_base import PlantBase
 from .plant_cfg import PlantCfg
-from .input_output import InputOutput
-from .input_output_cfg import InputOutputCfg
-from .state_space import StateSpace
-from .state_space_cfg import StateSpaceCfg
+from .input_output_system import InputOutputSystem
+from .input_output_system_cfg import InputOutputSystemCfg
+from .state_space_system import StateSpaceSystem
+from .state_space_system_cfg import StateSpaceSystemCfg
 
 __all__ = [
     "PlantBase",
     "PlantCfg",
-    "InputOutput",
-    "InputOutputCfg",
-    "StateSpace",
-    "StateSpaceCfg"
+    "InputOutputSystem",
+    "InputOutputSystemCfg",
+    "StateSpaceSystem",
+    "StateSpaceSystemCfg"
 ]
