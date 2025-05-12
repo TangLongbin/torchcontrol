@@ -2,16 +2,24 @@
 plant_base.py
 Base class for plant (system) models. Inherits from SystemBase.
 """
+from __future__ import annotations
+
 import abc
 import torch
 from torchdiffeq import odeint
+from typing import TYPE_CHECKING
 from torchcontrol.system import SystemBase
+
+if TYPE_CHECKING:
+    from .plant_cfg import PlantCfg
 
 class PlantBase(SystemBase, metaclass=abc.ABCMeta):
     """
     Abstract base class for plant (system) models.
     """
-    def __init__(self, cfg=None):
+    cfg: PlantCfg
+
+    def __init__(self, cfg: PlantCfg):
         super().__init__(cfg)
         self.ode_method = cfg.ode_method
         self.ode_options = cfg.ode_options
@@ -34,11 +42,23 @@ class PlantBase(SystemBase, metaclass=abc.ABCMeta):
         self.state = self.cfg.initial_state
 
     def step(self, u):
+        """
+        Step the plant forward in time using the provided input.
+        Args:
+            u: Input variable
+        Returns:
+            y: Output variable
+        """
+        # Ensure the input is a tensor
+        u = torch.as_tensor(u, dtype=torch.float32)
+        # odeint requires f(t, x) as dynamics function
+        def dynamics(t, x):
+            return self.forward(t, x, u)
+        # Integrate the ODE using odeint
         state_trajectory = odeint(
-            self.forward,
+            dynamics,
             self.state,
             torch.tensor([0, self.dt]),
-            args=(u,),
             method=self.ode_method,
             options=self.ode_options
         ) # Integrate the ODE

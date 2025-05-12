@@ -2,13 +2,15 @@
 system_cfg.py
 Base configuration class for SystemBase. Uses configclass decorator for style consistency.
 """
-from dataclasses import MISSING
+from __future__ import annotations
+
+from dataclasses import MISSING, dataclass
 from .system_base import SystemBase
 
 def configclass(cls):
     """Decorator to mark config classes (for style consistency)."""
     cls._is_configclass = True
-    return cls
+    return dataclass(cls)
 
 @configclass
 class SystemCfg:

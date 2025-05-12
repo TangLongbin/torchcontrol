@@ -2,6 +2,8 @@
 controller_cfg.py
 ControllerCfg inherits SystemCfg and provides a middle layer for controller configuration.
 """
+from __future__ import annotations
+
 from torchcontrol.system import SystemCfg, configclass
 
 @configclass

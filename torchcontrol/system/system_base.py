@@ -4,15 +4,25 @@ Base class for input/output systems with gym-like interfaces for RL and control 
 Inherits from torch.nn.Module for GPU parallel computing support.
 All main methods are abstract and should be implemented by subclasses.
 """
+from __future__ import annotations
+
 import abc
 import torch.nn as nn
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .system_cfg import SystemCfg
 
 class SystemBase(nn.Module, metaclass=abc.ABCMeta):
     """
     Abstract base class for input/output systems. Provides gym-like interfaces for RL/control.
     Methods: __init__, forward, update, reset, step (all abstract).
     """
-    def __init__(self, cfg=None):
+    
+    cfg: SystemCfg
+    """The configuration parameters."""
+    
+    def __init__(self, cfg: SystemCfg):
         """
         Initialize the system with optional configuration.
         Args:

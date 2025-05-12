@@ -2,6 +2,8 @@
 input_output_system_cfg.py
 Configuration for InputOutputSystem plant (n-order system).
 """
+from __future__ import annotations
+
 from scipy.signal import tf2ss
 from .input_output_system import InputOutputSystem
 from .state_space_system_cfg import StateSpaceSystemCfg, configclass

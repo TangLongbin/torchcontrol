@@ -11,14 +11,14 @@ if __name__ == "__main__":
     dt = 0.01
 
     # Create a configuration object
-    cfg = InputOutputSystemCfg(num=num, den=den, dt=dt)
+    cfg = InputOutputSystemCfg(numerator=num, denominator=den, dt=dt)
 
     # Create a plant object using the configuration
     plant = InputOutputSystem(cfg)
     
     # Step response
     T = 20
-    u = 1.0
+    u = [1.0]
     y = list()
     for t in range(int(T / dt)):
         # Simulate a step input

@@ -2,8 +2,14 @@
 state_space_system.py
 StateSpaceSystem plant: standard state space model, torch version.
 """
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+from .plant_cfg import PlantCfg
 from .plant_base import PlantBase
-from .state_space_system_cfg import StateSpaceSystemCfg
+
+if TYPE_CHECKING:
+    from .state_space_system_cfg import StateSpaceSystemCfg
 
 class StateSpaceSystem(PlantBase):
     """
@@ -11,6 +17,8 @@ class StateSpaceSystem(PlantBase):
     Args:
         cfg: StateSpaceSystemCfg
     """
+    cfg: StateSpaceSystemCfg
+
     def __init__(self, cfg: StateSpaceSystemCfg):
         super().__init__(cfg)
         self.A = cfg.A

@@ -2,6 +2,8 @@
 state_space_system_cfg.py
 Configuration for StateSpaceSystem plant (torch version).
 """
+from __future__ import annotations
+
 import torch
 from torch import Tensor
 from .plant_cfg import PlantCfg, configclass
@@ -26,13 +28,13 @@ class StateSpaceSystemCfg(PlantCfg):
         self.B = torch.as_tensor(self.B, dtype=torch.float32)
         self.C = torch.as_tensor(self.C, dtype=torch.float32)
         self.D = torch.as_tensor(self.D, dtype=torch.float32)
-        self.initial_state = torch.as_tensor(self.initial_state, dtype=torch.float32)
+        # Set state_dim and action_dim
+        self.state_dim = self.A.shape[0]
+        self.action_dim = self.B.shape[1]
         # Dimension checks
         assert self.A.shape[0] == self.A.shape[1], f"A must be square, got {self.A.shape}"
         assert self.A.shape[0] == self.B.shape[0], f"A rows ({self.A.shape[0]}) must match B rows ({self.B.shape[0]})"
         assert self.A.shape[1] == self.C.shape[1], f"A cols ({self.A.shape[1]}) must match C cols ({self.C.shape[1]})"
         assert self.C.shape[0] == self.D.shape[0], f"C rows ({self.C.shape[0]}) must match D rows ({self.D.shape[0]})"
-        assert self.initial_state.shape[0] == self.A.shape[1], f"initial_state dim ({self.initial_state.shape[0]}) must match A cols ({self.A.shape[1]})"
-        # Set state_dim and action_dim
-        self.state_dim = self.A.shape[0]
-        self.action_dim = self.B.shape[1]
+        # Call parent class post_init
+        super().__post_init__()

@@ -2,9 +2,14 @@
 input_output_system.py
 InputOutputSystem plant: n-order system described by input/output difference equation, using torch.Tensor.
 """
+from __future__ import annotations
+
 from scipy.signal import tf2ss
+from typing import TYPE_CHECKING
 from .state_space_system import StateSpaceSystem
-from .input_output_system_cfg import InputOutputSystemCfg
+
+if TYPE_CHECKING:
+    from .input_output_system_cfg import InputOutputSystemCfg
 
 class InputOutputSystem(StateSpaceSystem):
     """
@@ -12,6 +17,8 @@ class InputOutputSystem(StateSpaceSystem):
     Args:
         cfg: InputOutputSystemCfg
     """
+    cfg: InputOutputSystemCfg
+
     def __init__(self, cfg: InputOutputSystemCfg):
         super().__init__(cfg)
         # num/den are handled in cfg and converted to A, B, C, D via tf2ss
