@@ -1,6 +1,13 @@
+"""
+second_order_step_response.py
+This script demonstrates how to create a second-order system using the InputOutputSystem class from the torchcontrol library.
+It simulates the step response of the system with different initial states and visualizes the results.
+"""
 import os
+import torch
+import numpy as np
 import matplotlib.pyplot as plt
-from torchcontrol.plants import InputOutput, InputOutputCfg
+from torchcontrol.plants import InputOutputSystem, InputOutputSystemCfg
 
 if __name__ == "__main__":
     # Example usage
@@ -8,32 +15,54 @@ if __name__ == "__main__":
     zeta = 0.7 # Damping ratio
     num = [omega_n**2]
     den = [1.0, 2.0 * zeta * omega_n, omega_n**2]
+    height, width = 4, 4
+    num_envs = height * width
     dt = 0.01
 
+    # 16 different initial states for each env (random values in [0,2])
+    torch.manual_seed(42) # Set seed for reproducibility
+    initial_states = torch.rand(num_envs, 1)*2 # shape: [num_envs, 1]
+
     # Create a configuration object
-    cfg = InputOutputCfg(num=num, den=den, dt=dt)
+    cfg = InputOutputSystemCfg(
+        numerator=num,
+        denominator=den,
+        dt=dt,
+        num_envs=num_envs,
+        initial_state=initial_states
+    )
 
     # Create a plant object using the configuration
-    plant = InputOutput(cfg)
+    plant = InputOutputSystem(cfg)
     
     # Step response
     T = 20
-    u = 1.0
-    y = list()
-    for t in range(int(T / dt)):
+    u = [1.0]
+    t = [0.0]
+    y = initial_states
+    for k in range(int(T / dt)):
         # Simulate a step input
-        output = plant.step(u)
-        y.append(output.item())
-        
+        output = plant.step(u)  # output: [num_envs, output_dim]
+        y = torch.cat((y, output), dim=1)  # Concatenate the output to the previous outputs
+        t.append(t[-1] + dt)
+    y = y.tolist()  # Convert to list
+    
     # Visualize the output
     save_dir = os.path.join(os.path.dirname(__file__), "results")
     os.makedirs(save_dir, exist_ok=True)
-    plt.plot([t * dt for t in range(int(T / dt))], y, label='Output')
-    plt.plot([t * dt for t in range(int(T / dt))], [u] * int(T / dt), 'r--', label='Input')
-    plt.title("Step Response of InputOutput Plant")
-    plt.xlabel("Time (s)")
-    plt.ylabel("Output")
-    plt.grid()
+    fig, axes = plt.subplots(height, width, figsize=(12, 10))
+    for k in range(num_envs):
+        # index to xy
+        i, j = np.unravel_index(k, (height, width))
+        ax = axes[i, j]
+        ax.plot(t, y[k], label='Output')
+        ax.plot(t, u * len(t), 'r--', label='Input')
+        ax.set_title(f'Env {k} Step Response')
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Output')
+        ax.grid()
+        ax.legend()
+    plt.tight_layout()
     plt.savefig(os.path.join(save_dir, "step_response.png"))
     print("Step response plot saved to:", os.path.join(save_dir, "step_response.png"))
     print("Test completed successfully.")

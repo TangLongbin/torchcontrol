@@ -1,10 +1,10 @@
 """
 pid_control_second_order.py
-PID control of a second-order system (InputOutput model).
+PID control of a second-order system (InputOutputSystem model).
 Visualizes system output, setpoint, and control signal.
 """
 from torchcontrol.controllers import PID, PIDCfg
-from torchcontrol.plants import InputOutput, InputOutputCfg
+from torchcontrol.plants import InputOutputSystem, InputOutputSystemCfg
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -15,8 +15,8 @@ if __name__ == "__main__":
     dt = 0.01
     num = [1.0]
     den = [1.0, 2.0, 1.0]
-    plant_cfg = InputOutputCfg(num=num, den=den, dt=dt)
-    plant = InputOutput(plant_cfg)
+    plant_cfg = InputOutputSystemCfg(num=num, den=den, dt=dt)
+    plant = InputOutputSystem(plant_cfg)
 
     # PID controller parameters (tuned for this plant, smaller values to avoid overflow)
     pid_cfg = PIDCfg(Kp=3.0, Ki=6.0, Kd=0.05, dt=dt, u_ff=0.0)

@@ -1,9 +1,9 @@
 """
 pid_control_second_order_cuda.py
-Test PID control of a second-order system (InputOutput model) on GPU (CUDA).
+Test PID control of a second-order system (InputOutputSystem model) on GPU (CUDA).
 """
 from torchcontrol.controllers import PID, PIDCfg
-from torchcontrol.plants import InputOutput, InputOutputCfg
+from torchcontrol.plants import InputOutputSystem, InputOutputSystemCfg
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,8 +15,8 @@ if __name__ == "__main__":
     dt = 0.01
     num = [1.0]
     den = [1.0, 2.0, 1.0]
-    plant_cfg = InputOutputCfg(num=num, den=den, dt=dt)
-    plant = InputOutput(plant_cfg)
+    plant_cfg = InputOutputSystemCfg(num=num, den=den, dt=dt)
+    plant = InputOutputSystem(plant_cfg)
     # Move plant parameters to device
     plant.num = plant.num.to(device)
     plant.den = plant.den.to(device)
