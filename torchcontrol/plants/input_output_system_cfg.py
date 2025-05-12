@@ -22,6 +22,10 @@ class InputOutputSystemCfg(StateSpaceSystemCfg):
     denominator: list[float] | list[list[float]] | Tensor = None
     """Denominator coefficients of the transfer function."""
     
+    def __repr__(self):
+        """String representation of the configuration."""
+        return f"{super().__repr__()}numerator: {self.numerator}\ndenominator: {self.denominator}\n"
+    
     def __post_init__(self):
         """Post-initialization"""
         # Convert to torch tensors
@@ -53,13 +57,13 @@ class InputOutputSystemCfg(StateSpaceSystemCfg):
                 self.C.append(C)
                 self.D.append(D)
             # Stack the lists into tensors
-            self.A = torch.stack(self.A, dim=0).to(self.device)
-            self.B = torch.stack(self.B, dim=0).to(self.device)
-            self.C = torch.stack(self.C, dim=0).to(self.device)
-            self.D = torch.stack(self.D, dim=0).to(self.device)
+            self.A = torch.stack(self.A, dim=0)
+            self.B = torch.stack(self.B, dim=0)
+            self.C = torch.stack(self.C, dim=0)
+            self.D = torch.stack(self.D, dim=0)
         else:
             A, B, C, D = tf2ss(self.numerator.tolist(), self.denominator.tolist())
-            self.A = torch.as_tensor(A, dtype=torch.float32).to(self.device)
-            self.B = torch.as_tensor(B, dtype=torch.float32).to(self.device)
-            self.C = torch.as_tensor(C, dtype=torch.float32).to(self.device)
-            self.D = torch.as_tensor(D, dtype=torch.float32).to(self.device)
+            self.A = torch.as_tensor(A, dtype=torch.float32)
+            self.B = torch.as_tensor(B, dtype=torch.float32)
+            self.C = torch.as_tensor(C, dtype=torch.float32)
+            self.D = torch.as_tensor(D, dtype=torch.float32)

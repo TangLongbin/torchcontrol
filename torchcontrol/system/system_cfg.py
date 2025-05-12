@@ -31,6 +31,10 @@ class SystemCfg:
     device: str = "cpu"
     """Device to run the simulation on. Can be "cpu" or "cuda"."""
     
+    def __repr__(self):
+        """String representation of the configuration."""
+        return f"num_envs: {self.num_envs}\ndt: {self.dt}\ndevice: {self.device}\n"
+    
     def __post_init__(self):
         """Post-initialization checks."""
         assert self.num_envs > 0, "num_envs must be greater than 0"

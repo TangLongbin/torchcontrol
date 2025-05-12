@@ -44,3 +44,7 @@ class InputOutputSystem(StateSpaceSystem):
         if is_updated:
             # Convert transfer function to state space representation
             self.cfg._tf2ss()
+            self.A = self.cfg.A.to(self.device)
+            self.B = self.cfg.B.to(self.device)
+            self.C = self.cfg.C.to(self.device)
+            self.D = self.cfg.D.to(self.device)
