@@ -7,6 +7,7 @@ All main methods are abstract and should be implemented by subclasses.
 from __future__ import annotations
 
 import abc
+import torch
 import torch.nn as nn
 from typing import TYPE_CHECKING
 
@@ -26,10 +27,11 @@ class SystemBase(nn.Module, metaclass=abc.ABCMeta):
         """
         Initialize the system with optional configuration.
         Args:
-            cfg: Optional configuration object.
+            cfg: SystemCfg
         """
         super().__init__()
         self.cfg = cfg
+        self._ALL_INDICES = torch.arange(self.num_envs, dtype=torch.long, device=self.device)
 
     @abc.abstractmethod
     def forward(self, *args, **kwargs):
@@ -76,3 +78,12 @@ class SystemBase(nn.Module, metaclass=abc.ABCMeta):
             float: Time step.
         """
         return self.cfg.dt
+    
+    @property
+    def device(self):
+        """
+        Device for the system (CPU or GPU).
+        Returns:
+            str: Device type.
+        """
+        return self.cfg.device

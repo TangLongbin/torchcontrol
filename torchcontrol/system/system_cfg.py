@@ -22,8 +22,17 @@ class SystemCfg:
     The class should inherit from :class:`torchcontrol.system.SystemBase`.
     """
     
-    num_envs: int | None = None
+    num_envs: int = 1
     """Number of environments to create."""
     
     dt: float = 0.01
     """Time step for simulation."""
+    
+    device: str = "cpu"
+    """Device to run the simulation on. Can be "cpu" or "cuda"."""
+    
+    def __post_init__(self):
+        """Post-initialization checks."""
+        assert self.num_envs > 0, "num_envs must be greater than 0"
+        assert self.dt > 0, "dt must be greater than 0"
+        assert self.device in ["cpu", "cuda"], "device must be 'cpu' or 'cuda'"

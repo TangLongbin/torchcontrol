@@ -33,10 +33,14 @@ class InputOutputSystem(StateSpaceSystem):
             *args: new numerator and denominator coefficients
             **kwargs: new numerator and denominator coefficients
         """
+        super().update(*args, **kwargs)
+        is_updated = False
         for key in ['numerator', 'denominator']:
             if key in kwargs:
+                assert getattr(self, key).shape == kwargs[key].shape, \
+                    f"Shape mismatch for {key}: {getattr(self, key).shape} != {kwargs[key].shape}"
                 setattr(self, key, kwargs[key])
-        # Update A, B, C, D matrices based on new numerator and denominator
-        A, B, C, D = tf2ss(self.numerator, self.denominator)
-        # Call the parent class update method to update the state space matrices
-        super().update(A=A, B=B, C=C, D=D)
+                is_updated = True
+        if is_updated:
+            # Convert transfer function to state space representation
+            self.cfg._tf2ss()
