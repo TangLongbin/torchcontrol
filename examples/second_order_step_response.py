@@ -24,10 +24,6 @@ if __name__ == "__main__":
     torch.manual_seed(42) # Set seed for reproducibility
     initial_states = torch.rand(num_envs, 1, device=device)*2 # shape: [num_envs, 1]
 
-    # 16 different initial states for each env (random values in [0,2])
-    torch.manual_seed(42) # Set seed for reproducibility
-    initial_states = torch.rand(num_envs, 1)*2 # shape: [num_envs, 1]
-
     # Create a configuration object
     cfg = InputOutputSystemCfg(
         numerator=num,
