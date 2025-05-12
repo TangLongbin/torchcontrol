@@ -1,6 +1,6 @@
 """
 test_pid.py
-Example script to test the PID controller in torchControl.
+Example script to test the PID controller in torchcontrol.
 Saves results to examples/results/pid_test_output.txt
 """
 from torchcontrol.controllers import PID, PIDCfg

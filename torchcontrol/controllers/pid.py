@@ -1,6 +1,6 @@
 """
 pid.py
-PID controller implementation for torchControl. Inherits ControllerBase.
+PID controller implementation for torchcontrol. Inherits ControllerBase.
 Supports both continuous and discrete PID control, with feedforward term. All computation uses torch.Tensor.
 """
 import torch

@@ -33,7 +33,7 @@ class StateSpaceSystem(PlantBase):
             self.D = self.D.repeat(self.num_envs, 1, 1)
         self.reset()
 
-    def forward(self, t, x, u):
+    def forward(self, x, u, t):
         """
         State space model dx/dt = Ax + Bu
         Args:
@@ -52,12 +52,13 @@ class StateSpaceSystem(PlantBase):
         Bu = torch.bmm(self.B, u.unsqueeze(-1)).squeeze(-1)
         return Ax + Bu
 
-    def output(self, x, u):
+    def output(self, x, u, t):
         """
         State space model y = Cx + Du
         Args:
             x: state
             u: input
+            t: time
         Returns:
             y: output
         """

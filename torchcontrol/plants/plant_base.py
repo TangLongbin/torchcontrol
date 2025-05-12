@@ -30,13 +30,13 @@ class PlantBase(SystemBase, metaclass=abc.ABCMeta):
         self.reset()
 
     @abc.abstractmethod
-    def forward(self, t, x, u):
+    def forward(self, x, u, t):
         """
         Plant dynamics function to be implemented by subclasses.
         Args:
-            t: Time variable
             x: State variable
             u: Input variable
+            t: Time variable
         Returns:
             dx/dt: Derivative of state variable
         """
@@ -68,27 +68,28 @@ class PlantBase(SystemBase, metaclass=abc.ABCMeta):
             u = u.unsqueeze(0).repeat(self.num_envs, 1)
         assert u.shape == (self.num_envs, self.action_dim), \
             f"Input shape {u.shape} must be [{self.num_envs}, {self.action_dim}]"
-        # odeint requires f(t, x) as dynamics function
-        def dynamics(t, x):
-            return self.forward(t, x, u)
+        # odeint requires dx/dt = f(t, x) as Ordinary Differential Equation (ODE)
+        def ode_func(t, x):
+            return self.forward(x, u, t)
         # Integrate the ODE using odeint, shape (len(t), num_envs, state_dim)
         state_trajectory = odeint(
-            func=dynamics,
+            func=ode_func,
             y0=self.state,
             t=torch.tensor([0, self.dt], device=self.device),
             method=self.ode_method,
             options=self.ode_options
         ) # Integrate the ODE
         self.state = state_trajectory[-1] # Get the last state
-        return self.output(self.state, u)
+        return self.output(self.state, u, self.dt)
 
     @abc.abstractmethod
-    def output(self, x, u):
+    def output(self, x, u, t):
         """
         Plant output function to be implemented by subclasses.
         Args:
             x: State variable
             u: Input variable
+            t: Time variable
         Returns:
             y: Output variable
         """
