@@ -73,9 +73,9 @@ class PlantBase(SystemBase, metaclass=abc.ABCMeta):
             return self.forward(t, x, u)
         # Integrate the ODE using odeint, shape (len(t), num_envs, state_dim)
         state_trajectory = odeint(
-            dynamics,
-            self.state,
-            torch.tensor([0, self.dt]),
+            func=dynamics,
+            y0=self.state,
+            t=torch.tensor([0, self.dt], device=self.device),
             method=self.ode_method,
             options=self.ode_options
         ) # Integrate the ODE

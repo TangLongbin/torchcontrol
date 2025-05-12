@@ -20,6 +20,10 @@ class StateSpaceSystemCfg(PlantCfg):
     C: list[list[float]] | list[list[list[float]]] | Tensor = None
     D: list[list[float]] | list[list[list[float]]] | Tensor = None
     """System matrices"""
+    
+    def __repr__(self):
+        """String representation of the configuration."""
+        return f"{super().__repr__()}A: {self.A}\nB: {self.B}\nC: {self.C}\nD: {self.D}\n"
 
     def __post_init__(self):
         """Post-initialization"""

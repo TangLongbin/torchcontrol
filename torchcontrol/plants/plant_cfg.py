@@ -30,6 +30,10 @@ class PlantCfg(SystemCfg):
     ode_options: dict = None
     """Options for ODE integration method. Used only if ode_method is "rk4" or "dopri5"."""
     
+    def __repr__(self):
+        """String representation of the configuration."""
+        return f"{super().__repr__()}state_dim: {self.state_dim}\naction_dim: {self.action_dim}\ninitial_state: {self.initial_state}\node_method: {self.ode_method}\node_options: {self.ode_options}\n"
+    
     def __post_init__(self):
         """Post-initialization"""
         # Convert initial_state to tensor if not None, otherwise set to zero

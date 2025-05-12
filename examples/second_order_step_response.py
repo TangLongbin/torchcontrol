@@ -18,10 +18,11 @@ if __name__ == "__main__":
     height, width = 4, 4
     num_envs = height * width
     dt = 0.01
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # 16 different initial states for each env (random values in [0,2])
     torch.manual_seed(42) # Set seed for reproducibility
-    initial_states = torch.rand(num_envs, 1)*2 # shape: [num_envs, 1]
+    initial_states = torch.rand(num_envs, 1, device=device)*2 # shape: [num_envs, 1]
 
     # Create a configuration object
     cfg = InputOutputSystemCfg(
@@ -29,8 +30,10 @@ if __name__ == "__main__":
         denominator=den,
         dt=dt,
         num_envs=num_envs,
-        initial_state=initial_states
+        initial_state=initial_states,
+        device=device,
     )
+    print(f"\033[1;33mSystem configuration:\n{cfg}\033[0m")
 
     # Create a plant object using the configuration
     plant = InputOutputSystem(cfg)
@@ -39,13 +42,13 @@ if __name__ == "__main__":
     T = 20
     u = [1.0]
     t = [0.0]
-    y = initial_states
+    y = [initial_states]
     for k in range(int(T / dt)):
         # Simulate a step input
         output = plant.step(u)  # output: [num_envs, output_dim]
-        y = torch.cat((y, output), dim=1)  # Concatenate the output to the previous outputs
+        y.append(output)
         t.append(t[-1] + dt)
-    y = y.tolist()  # Convert to list
+    y = torch.cat(y, dim=1).tolist()  # Concatenate outputs and convert to list
     
     # Visualize the output
     save_dir = os.path.join(os.path.dirname(__file__), "results")
@@ -65,4 +68,4 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, "step_response.png"))
     print("Step response plot saved to:", os.path.join(save_dir, "step_response.png"))
-    print("Test completed successfully.")
+    print("\033[1;32mTest completed successfully.\033[0m")
