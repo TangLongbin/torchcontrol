@@ -69,6 +69,24 @@ class SystemBase(nn.Module, metaclass=abc.ABCMeta):
             int: Number of environments.
         """
         return self.cfg.num_envs
+    
+    @property
+    def state_dim(self):
+        """
+        State dimension of the system.
+        Returns:
+            int: State dimension
+        """
+        return self.cfg.state_dim
+    
+    @property
+    def action_dim(self):
+        """
+        Action dimension of the system.
+        Returns:
+            int: Action dimension
+        """
+        return self.cfg.action_dim
 
     @property
     def dt(self):

@@ -107,25 +107,7 @@ class PlantBase(SystemBase, metaclass=abc.ABCMeta):
                 assert getattr(self, key).shape == kwargs[key].shape, \
                     f"Shape mismatch for {key}: {getattr(self, key).shape} != {kwargs[key].shape}"
                 setattr(self, key, kwargs[key])
-    
-    @property
-    def state_dim(self):
-        """
-        State dimension of the plant.
-        Returns:
-            int: State dimension
-        """
-        return self.cfg.state_dim
-    
-    @property
-    def action_dim(self):
-        """
-        Action dimension of the plant.
-        Returns:
-            int: Action dimension
-        """
-        return self.cfg.action_dim
-    
+
     @property
     def ode_method(self):
         """
