@@ -71,8 +71,8 @@ if __name__ == "__main__":
     for k in range(num_envs):
         i, j = divmod(k, width)
         ax = axes[i, j]
-        ax.plot(t_arr, r_hist[k], label='Reference (r)')
         ax.plot(t_arr, y_hist[k], label='Output (y)')
+        ax.plot(t_arr, r_hist[k], 'r--', label='Reference (r)')
         # ax.plot(t_arr, u_hist[k], label='Control (u)')
         # ax.plot(t_arr, e_hist[k], label='Error')
         ax.set_title(f'Env {k}')

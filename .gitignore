@@ -55,6 +55,3 @@ coverage.xml
 # OS files
 .DS_Store
 Thumbs.db
-
-# Results and generated images
-examples/results/
