@@ -16,12 +16,6 @@ class PlantCfg(SystemCfg):
     
     class_type: type[PlantBase] = MISSING
     
-    state_dim: int = 1
-    """Dimension of the state space."""
-    
-    action_dim: int = 1
-    """Dimension of the action space."""
-    
     initial_state: list[float] | list[list[float]] | Tensor = None
     
     ode_method: str = "rk4"
@@ -32,7 +26,7 @@ class PlantCfg(SystemCfg):
     
     def __repr__(self):
         """String representation of the configuration."""
-        return f"{super().__repr__()}state_dim: {self.state_dim}\naction_dim: {self.action_dim}\ninitial_state: {self.initial_state}\node_method: {self.ode_method}\node_options: {self.ode_options}\n"
+        return f"{super().__repr__()}initial_state: {"manually set" if self.initial_state.count_nonzero().item() != 0 else "all zero"}\node_method: {self.ode_method}\node_options: {self.ode_options}\n"
     
     def __post_init__(self):
         """Post-initialization"""
@@ -42,8 +36,6 @@ class PlantCfg(SystemCfg):
         else:
             self.initial_state = torch.as_tensor(self.initial_state, dtype=torch.float32)
         # Dimension checks
-        assert self.state_dim > 0, "state_dim must be greater than 0"
-        assert self.action_dim > 0, "action_dim must be greater than 0"
         assert self.initial_state.shape == (self.state_dim,) or self.initial_state.shape == (self.num_envs, self.state_dim), \
             f"initial_state shape {self.initial_state.shape} must be ({self.state_dim},) or ({self.num_envs}, {self.state_dim})"
         # Call parent class post_init

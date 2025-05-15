@@ -1,8 +1,8 @@
-# torchControl
+# torchcontrol
 
 ## Introduction
 
-torchControl is a parallel control system simulation and control library based on PyTorch, supporting RL, classical control, and GPU parallelism.
+torchcontrol is a parallel control system simulation and control library based on PyTorch, supporting RL, classical control, and GPU parallelism.
 
 ## Installation
 

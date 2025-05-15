@@ -5,6 +5,7 @@ StateSpaceSystem plant: standard state space model, torch version.
 from __future__ import annotations
 
 import torch
+from torch import Tensor
 from typing import TYPE_CHECKING
 from .plant_base import PlantBase
 
@@ -33,7 +34,7 @@ class StateSpaceSystem(PlantBase):
             self.D = self.D.repeat(self.num_envs, 1, 1)
         self.reset()
 
-    def forward(self, t, x, u):
+    def forward(self, x, u, t):
         """
         State space model dx/dt = Ax + Bu
         Args:
@@ -52,22 +53,27 @@ class StateSpaceSystem(PlantBase):
         Bu = torch.bmm(self.B, u.unsqueeze(-1)).squeeze(-1)
         return Ax + Bu
 
-    def output(self, x, u):
+    def output(self, x: Tensor | None = None, u: Tensor | None = None, t: float | None = None) -> Tensor:
         """
         State space model y = Cx + Du
         Args:
             x: state
             u: input
+            t: time
         Returns:
             y: output
         """
+        # If x is not provided, use the current state
+        x = x if x is not None else self.state
+        # u is optional, if not provided, use zero input
+        u = u if u is not None else torch.zeros(self.num_envs, self.action_dim, device=self.device)
         # C.shape == (num_envs, p, n)
-        # D.shape == (num_envs, p, m)
         # x.shape == (num_envs, n) --unsqueeze(-1)--> (num_envs, n, 1)
-        # u.shape == (num_envs, m) --unsqueeze(-1)--> (num_envs, m, 1)
-        # y.shape == (num_envs, p) <--squeeze(-1)-- (num_envs, p, 1)
         Cx = torch.bmm(self.C, x.unsqueeze(-1)).squeeze(-1)
+        # D.shape == (num_envs, p, m)
+        # u.shape == (num_envs, m) --unsqueeze(-1)--> (num_envs, m, 1)
         Du = torch.bmm(self.D, u.unsqueeze(-1)).squeeze(-1)
+        # y.shape == (num_envs, p) <--squeeze(-1)-- (num_envs, p, 1)
         return Cx + Du
 
     def update(self, *args, **kwargs):
