@@ -1,5 +1,5 @@
 """
-nonlinear_system_step_response.py
+nonlinear_plant_step_response.py
 Example: Step response of a batch nonlinear system using NonlinearSystem.
 """
 import os
@@ -89,6 +89,7 @@ if __name__ == "__main__":
         ax.grid()
         ax.legend(fontsize=8)
     plt.tight_layout()
-    plt.savefig(os.path.join(save_dir, "nonlinear_step_response.png"))
-    print("Step response plot saved to:", os.path.join(save_dir, "nonlinear_step_response.png"))
+    fig_path = os.path.join(save_dir, "nonlinear_plant_step_response.png")
+    plt.savefig(fig_path)
+    print("Step response plot saved to:", fig_path)
     print("\033[1;32mTest completed successfully.\033[0m")

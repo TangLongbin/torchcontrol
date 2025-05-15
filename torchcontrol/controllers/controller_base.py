@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import abc
 import torch
-from typing import TYPE_CHECKING
+from typing import Sequence, TYPE_CHECKING
 from torchcontrol.plants import PlantBase
 from torchcontrol.system import SystemBase
 
@@ -41,9 +41,10 @@ class ControllerBase(SystemBase, metaclass=abc.ABCMeta):
     def update(self, *args, **kwargs):
         pass
 
-    @abc.abstractmethod
-    def reset(self, *args, **kwargs):
-        pass
+    def reset(self, env_ids: Sequence[int] | None = None):
+        if env_ids is None or len(env_ids) == self.num_envs:
+            env_ids = self._ALL_INDICES # Reset all environments
+        self.plant.reset(env_ids) if self.plant is not None else None
     
     def step(self, r, x = None):
         """
@@ -71,10 +72,10 @@ class ControllerBase(SystemBase, metaclass=abc.ABCMeta):
         else:
             assert self.plant is not None, \
                 "State must be provided or plant must be set in the controller."
-            # Get the current state from the plant
-            x = self.plant.state
+            # Get the current output from the plant
+            x = self.plant.output(x=self.plant.state)
             
-        # Call the forward method with the reference and current state
+        # Call the forward method with the reference and current output
         return self.forward(x, r, t=self.dt)
 
     @property

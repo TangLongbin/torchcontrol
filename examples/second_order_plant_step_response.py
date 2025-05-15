@@ -1,5 +1,5 @@
 """
-second_order_step_response.py
+second_order_plant_step_response.py
 This script demonstrates how to create a second-order system using the InputOutputSystem class from the torchcontrol library.
 It simulates the step response of the system with different initial states and visualizes the results.
 """
@@ -66,6 +66,7 @@ if __name__ == "__main__":
         ax.grid()
         ax.legend()
     plt.tight_layout()
-    plt.savefig(os.path.join(save_dir, "step_response.png"))
-    print("Step response plot saved to:", os.path.join(save_dir, "step_response.png"))
+    fig_path = os.path.join(save_dir, 'second_order_plant_step_response.png')
+    plt.savefig(fig_path)
+    print("Step response plot saved to:", fig_path)
     print("\033[1;32mTest completed successfully.\033[0m")

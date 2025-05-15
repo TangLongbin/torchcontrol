@@ -96,6 +96,8 @@ class PID(ControllerBase):
         """
         if env_ids is None or len(env_ids) == self.num_envs:
             env_ids = self._ALL_INDICES # Reset all environments
+        # Call parent class reset method
+        super().reset(env_ids)
         # Reset the error and control output
         self.e_k_1[env_ids] = torch.zeros_like(self.e_k_1[env_ids])
         self.e_k_2[env_ids] = torch.zeros_like(self.e_k_2[env_ids])

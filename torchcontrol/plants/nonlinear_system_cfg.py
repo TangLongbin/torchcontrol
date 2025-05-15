@@ -38,7 +38,7 @@ class Parameters:
             setattr(self, k, v)
     
     def __repr__(self):
-        return f"Parameters({', '.join(f'{k}' for k in self.__dict__.keys())})\n"
+        return f"Parameters({', '.join(f'{k}' for k in self.__dict__.keys())})"
 
 @configclass
 class NonlinearSystemCfg(PlantCfg):
