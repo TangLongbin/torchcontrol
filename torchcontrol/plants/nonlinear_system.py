@@ -4,7 +4,6 @@ NonlinearSystem plant: general nonlinear system using user-defined dynamics and 
 """
 from __future__ import annotations
 
-from dataclasses import fields
 from typing import TYPE_CHECKING
 from .plant_base import PlantBase
 
@@ -22,9 +21,17 @@ class NonlinearSystem(PlantBase):
     def __init__(self, cfg: NonlinearSystemCfg):
         super().__init__(cfg)
         self.params = cfg.params
-        # Move parameters to the device
+        # Move parameters to the device and add batch dimension if needed
         for k, v in self.params.__dict__.items():
-            setattr(self.params, k, v.to(self.device))
+            v = v.to(self.device) # Move to device
+            if v.dim() in [1, 2]:
+                if v.shape[0] == self.num_envs:
+                    if self.params.force_batch:
+                        v = v.repeat(self.num_envs, *([1] * v.dim()))
+                else:
+                    v = v.repeat(self.num_envs,  *([1] * v.dim()))
+            # Set the parameter in the params object
+            setattr(self.params, k, v)
         self.reset()
 
     def forward(self, x, u, t):
