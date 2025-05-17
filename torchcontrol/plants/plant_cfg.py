@@ -26,7 +26,13 @@ class PlantCfg(SystemCfg):
     
     def __repr__(self):
         """String representation of the configuration."""
-        return f"{super().__repr__()}initial_state: {"manually set" if self.initial_state.count_nonzero().item() != 0 else "all zero"}\node_method: {self.ode_method}\node_options: {self.ode_options}\n"
+        initial_state_description = "manually set" if self.initial_state.count_nonzero().item() != 0 else "all zero"
+        return (
+            f"{super().__repr__()}"
+            f"initial_state: {initial_state_description}\n"
+            f"ode_method: {self.ode_method}\n"
+            f"ode_options: {self.ode_options}\n"
+        )
     
     def __post_init__(self):
         """Post-initialization"""

@@ -41,9 +41,9 @@ if __name__ == "__main__":
 
     # Initial states: random in [0,2] for x1, zero for x2
     torch.manual_seed(42)
-    x1_0 = torch.rand(num_envs) * 2
-    x2_0 = torch.zeros(num_envs)
-    initial_states = torch.stack([x1_0, x2_0], dim=1)
+    x1_0 = torch.rand(num_envs, device=device) * 2
+    x2_0 = torch.zeros(num_envs, device=device)
+    initial_states = torch.stack([x1_0, x2_0], dim=1)  # [num_envs, state_dim]
 
     # Config
     cfg = NonlinearSystemCfg(
