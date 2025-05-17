@@ -26,12 +26,12 @@ class StateSpaceSystem(PlantBase):
         self.B = cfg.B.to(self.device)
         self.C = cfg.C.to(self.device)
         self.D = cfg.D.to(self.device)
-        if self.A.dim() == 2:
-            # Add batch dimension if not present
-            self.A = self.A.repeat(self.num_envs, 1, 1)
-            self.B = self.B.repeat(self.num_envs, 1, 1)
-            self.C = self.C.repeat(self.num_envs, 1, 1)
-            self.D = self.D.repeat(self.num_envs, 1, 1)
+        # Add batch dimension if not present
+        self.A = self.A.repeat(self.num_envs, 1, 1) if self.A.dim() == 2 else self.A
+        self.B = self.B.repeat(self.num_envs, 1, 1) if self.B.dim() == 2 else self.B
+        self.C = self.C.repeat(self.num_envs, 1, 1) if self.C.dim() == 2 else self.C
+        self.D = self.D.repeat(self.num_envs, 1, 1) if self.D.dim() == 2 else self.D
+        # Reset state to initial state
         self.reset()
 
     def forward(self, x, u, t):
