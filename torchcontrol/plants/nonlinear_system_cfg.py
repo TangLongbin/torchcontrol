@@ -5,7 +5,6 @@ Configuration for NonlinearSystem plant (general nonlinear system).
 from __future__ import annotations
 
 import torch
-from dataclasses import fields
 from torchcontrol.plants.plant_cfg import PlantCfg, configclass
 from .nonlinear_system import NonlinearSystem
 
@@ -27,18 +26,21 @@ class Parameters:
     params.k  # tensor([0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5])
     params.c  # tensor([0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2])
     params.alpha  # tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
-        ```
+    ```
     """
+    
+    force_batch: bool = False
+    """If True, add a batch dimension to the parameters, even if the first dimension is equal to num_envs."""
     
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
             v = torch.as_tensor(v, dtype=torch.float32)
-            # TODO: the parameter may be a 2D matrix
-            assert v.dim() == 1 or v.dim() == 0, f"Parameter {k} must be a 1D tensor or a scalar, but got {v.dim()}D"
+            # Only allow scalar, 1D, 2D or 3D tensors, and 3D tensors must have first dimension equal to num_envs
+            assert v.dim() <= 3, f"Parameter {k} must be a scalar, 1D, 2D or 3D tensor, but got {v.shape}"
             setattr(self, k, v)
     
     def __repr__(self):
-        return f"Parameters({', '.join(f'{k}' for k in self.__dict__.keys())})"
+        return f"Parameters({', '.join(f'{k}' for k in self.__dict__.keys())}, force_batch={self.force_batch})"
 
 @configclass
 class NonlinearSystemCfg(PlantCfg):
@@ -84,13 +86,19 @@ class NonlinearSystemCfg(PlantCfg):
             assert callable(self.output), "output must be a callable function if provided"
         else:
             self.output = lambda x, u, t, params: x # all state feedback if output is None
-        # every parameter must be a 1D tensor with shape (num_envs,) or a scalar
+        # Parameters shape assert
         if self.params is None:
             self.params = Parameters()
         else:
+            # If force_batch is true, add a batch dimension to the parameters when there is a confused shape
+            force_batch = self.params.force_batch
             for k, v in self.params.__dict__.items():
-                if isinstance(v, torch.Tensor) and v.dim() == 1:
-                    # TODO: the parameter may be a 2D matrix
-                    assert v.shape[0] == self.num_envs, f"Parameter {k} must have shape (num_envs,) but got {v.shape}"
+                if not isinstance(v, torch.Tensor):
+                    continue
+                # Only allow scalar, 1D, 2D or 3D tensors, and 3D tensors must have first dimension equal to num_envs
+                assert v.dim() <= 3, f"Parameter '{k}' must be a scalar, 1D, 2D or 3D tensor, but got {v.shape}"
+                # 3D tensors must have first dimension equal to num_envs
+                if v.dim() == 3:
+                    assert v.shape[0] == self.num_envs, f"Parameter '{k}' with dim=3 must have shape[0]==num_envs, got {v.shape}"
         # Call the parent post_init
         super().__post_init__()

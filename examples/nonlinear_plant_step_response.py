@@ -34,16 +34,16 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Parameters (same for all envs, but could be different)
-    k = torch.full((num_envs,), 1.0)
-    c = torch.full((num_envs,), 0.7)
-    alpha = torch.full((num_envs,), 0.2)
+    k = torch.full((num_envs,), 1.0) # Spring constant
+    c = torch.full((num_envs,), 0.7) # Damping coefficient
+    alpha = torch.full((num_envs,), 0.1) # Nonlinear coefficient, should be less than 0.15
     params = Parameters(k=k, c=c, alpha=alpha)
 
     # Initial states: random in [0,2] for x1, zero for x2
     torch.manual_seed(42)
-    x1_0 = torch.rand(num_envs) * 2
-    x2_0 = torch.zeros(num_envs)
-    initial_states = torch.stack([x1_0, x2_0], dim=1)
+    x1_0 = torch.rand(num_envs, device=device) * 2
+    x2_0 = torch.zeros(num_envs, device=device)
+    initial_states = torch.stack([x1_0, x2_0], dim=1)  # [num_envs, state_dim]
 
     # Config
     cfg = NonlinearSystemCfg(
