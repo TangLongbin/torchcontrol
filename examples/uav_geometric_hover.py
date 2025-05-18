@@ -2,33 +2,16 @@
 uav_geometric_hover.py
 Example: Geometric hover control of a batch quadrotor UAV using NonlinearSystem and a simple geometric controller.
 """
+
 import os
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+
 from torchcontrol.plants.nonlinear_system import NonlinearSystem
 from torchcontrol.plants.nonlinear_system_cfg import NonlinearSystemCfg, Parameters
+from uav_thrust_descent_to_hover import uav_dynamics, uav_output  # Use absolute import for script execution
 
-def uav_dynamics(x, u, t, params):
-    # x: [num_envs, 7] (p[3], v[3], q[1])
-    # u: [num_envs, 4] (F, omega_x, omega_y, omega_z)
-    g = params.g  # [num_envs] or scalar
-    m = params.m  # [num_envs] or scalar
-    p = x[:, 0:3]  # position [num_envs, 3]
-    v = x[:, 3:6]  # velocity [num_envs, 3]
-    q = x[:, 6]    # yaw (not used)
-    F = u[:, 0]    # thrust [num_envs]
-    g = g if g.shape[0] == x.shape[0] else g.expand(x.shape[0])
-    m = m if m.shape[0] == x.shape[0] else m.expand(x.shape[0])
-    dp = v
-    dv = torch.zeros_like(v)
-    dv[:, 2] = F / m - g  # only z-axis affected by thrust
-    dq = torch.zeros_like(q)  # ignore rotation for hover
-    dx = torch.cat([dp, dv, dq.unsqueeze(1)], dim=1)
-    return dx
-
-def uav_output(x, u, t, params):
-    return x
 
 class GeometricHoverController:
     def __init__(self, m, g, dt, num_envs, device):
@@ -40,49 +23,71 @@ class GeometricHoverController:
         self.z_ref = torch.ones(num_envs, device=device) * 1.0  # hover at z=1.0
         self.kp = 8.0
         self.kd = 4.0
+
     def step(self, x):
-        # x: [num_envs, 7]
+        # x: [num_envs, 10]
         z = x[:, 2]
         vz = x[:, 5]
         e = self.z_ref - z
         de = -vz
-        u_thrust = self.m * (self.g + self.kp * e + self.kd * de)
+        # Use only z-axis gravity for thrust control
+        u_thrust = self.m * (self.g[:, 2].abs() + self.kp * e + self.kd * de)
         u = torch.zeros(self.num_envs, 4, device=self.device)
         u[:, 0] = u_thrust
         return u
 
+
 if __name__ == "__main__":
+    # Batch grid size
     height, width = 4, 4
     num_envs = height * width
     dt = 0.01
     device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # UAV parameters (consistent with uav_thrust_descent_to_hover.py)
     m = torch.full((num_envs,), 1.0, device=device)
-    g = torch.full((num_envs,), 9.81, device=device)
+    # Define gravity as a 3D vector and broadcast to (num_envs, 3)
+    g = torch.tensor([0.0, 0.0, -9.81], device=device).expand(num_envs, 3)
     params = Parameters(m=m, g=g)
-    initial_state = torch.zeros(num_envs, 7, device=device)
+
+    # Initial state: [x, y, z, vx, vy, vz, qw, qx, qy, qz]
+    initial_state = torch.zeros(num_envs, 10, device=device)
+    initial_state[:, 6] = 1.0  # Set quaternion to [1,0,0,0] for all envs
+    initial_state[:, 5] = 1.0  # Set initial vz = 1.0 m/s for all envs (to see response)
+
+    # System configuration
     cfg = NonlinearSystemCfg(
         dynamics=uav_dynamics,
         output=uav_output,
         dt=dt,
         num_envs=num_envs,
-        state_dim=7,
+        state_dim=10,
         action_dim=4,
         initial_state=initial_state,
         params=params,
         device=device,
     )
+    print(f"\033[1;33mSystem configuration:\n{cfg}\033[0m")
+
     plant = NonlinearSystem(cfg)
     controller = GeometricHoverController(m, g, dt, num_envs, device)
+
+    # Simulation parameters
     T = 5
     steps = int(T / dt)
     t_arr = [0.0]
     y = [initial_state]
+
+    # Main simulation loop
     for k in range(steps):
         u = controller.step(y[-1])
         output = plant.step(u)
         y.append(output)
         t_arr.append(t_arr[-1] + dt)
+
     y = torch.stack(y, dim=1).cpu().numpy()  # [num_envs, steps+1, state_dim]
+
+    # Plotting results
     save_dir = os.path.join(os.path.dirname(__file__), "results")
     os.makedirs(save_dir, exist_ok=True)
     fig, axes = plt.subplots(height, width, figsize=(12, 10))
