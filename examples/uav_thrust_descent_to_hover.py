@@ -14,7 +14,6 @@ from torchcontrol.plants.nonlinear_system import NonlinearSystem
 from torchcontrol.plants.nonlinear_system_cfg import NonlinearSystemCfg, Parameters
 from torchcontrol.utils.math import quaternion_to_dcm, omega_quat_matrix
 
-
 def uav_dynamics(x, u, t, params):
     """
     UAV batch nonlinear dynamics for 3D quadrotor with quaternion attitude.
@@ -48,11 +47,9 @@ def uav_dynamics(x, u, t, params):
     dx = torch.cat([dp, dv, dq], dim=1)
     return dx
 
-
 def uav_output(x, u, t, params):
     """Output function (identity)."""
     return x
-
 
 if __name__ == "__main__":
     # Batch grid size
