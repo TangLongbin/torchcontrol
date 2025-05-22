@@ -52,7 +52,7 @@ jobs:
         run: |
           pip install pytest
           pip install -e .
-          pytest
+          pytest tests/
 
   pypi-publish:
     runs-on: ubuntu-latest
