@@ -1,7 +1,8 @@
 """
-second_order_plant_step_response.py
-This script demonstrates how to create a second-order system using the InputOutputSystem class from the torchcontrol library.
-It simulates the step response of the system with different initial states and visualizes the results.
+test_torchcontrol.py
+Test the modules of the torchcontrol package.
+This script will be tested by github actions with pytest.
+All test functions should be named with the prefix "test_".
 """
 import torch
 from torchcontrol.plants import InputOutputSystem, InputOutputSystemCfg
