@@ -8,8 +8,8 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-from torchcontrol.plants.nonlinear_system import NonlinearSystem
-from torchcontrol.plants.nonlinear_system_cfg import NonlinearSystemCfg, Parameters
+from torchcontrol.system import Parameters
+from torchcontrol.plants import NonlinearSystem, NonlinearSystemCfg
 from uav_thrust_descent_to_hover import uav_dynamics, uav_output  # Use absolute import for script execution
 
 
