@@ -57,12 +57,8 @@ class ControllerBase(SystemBase, metaclass=abc.ABCMeta):
         """
         # Ensure the reference is a tensor and the shape is correct
         r = torch.as_tensor(r, dtype=torch.float32, device=self.device)
-        if r.dim() == 0:
-            r = r.repeat(self.num_envs, self.state_dim)
-        if r.dim() == 1:
-            r = r.unsqueeze(0).repeat(self.num_envs, 1)
-        assert r.shape == (self.num_envs, self.state_dim), \
-            f"Reference shape {r.shape} must be [{self.num_envs}, {self.state_dim}]"
+        assert r.shape[0] == self.num_envs and r.shape[-1] == self.state_dim, \
+            f"Reference shape {r.shape} must be [{self.num_envs}, ... , {self.state_dim}]"
         
         # Ensure the state is a tensor and the shape is correct
         if x is not None:

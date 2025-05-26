@@ -4,6 +4,7 @@ Model Predictive Path Integral (MPPI) controller implementation.
 """
 from __future__ import annotations
 
+import copy
 import torch
 from typing import TYPE_CHECKING
 from .controller_base import ControllerBase
@@ -51,6 +52,7 @@ class MPPI(ControllerBase):
         self.sigma = cfg.sigma.to(self.device)
         self.u_min = cfg.u_min.to(self.device)
         self.u_max = cfg.u_max.to(self.device)
+        self.cost_function = cfg.cost_function # Callable for computing costs
         
         # Initialize nominal control sequence (mean), shape: (num_envs, T, action_dim)
         self.u_nominal = torch.zeros(self.num_envs, self.T, self.action_dim, device=self.device)
@@ -66,9 +68,15 @@ class MPPI(ControllerBase):
             self.u_max = torch.full((self.action_dim,), float(self.u_max), device=self.device)
 
         # For rollout simulation, create a new plant with batch_size = num_envs * K using plant's cfg
-        rollout_plant_cfg = self.plant.cfg.copy() # Make a shallow copy to avoid modifying the original cfg
+        rollout_plant_cfg = copy.deepcopy(self.plant.cfg) # Use deepcopy to avoid modifying the original cfg
         rollout_plant_cfg.num_envs = self.num_envs * self.K
-        self._rollout_plant = self.plant.cfg.class_type(rollout_plant_cfg)  # Create a new plant instance for rollouts
+        rollout_plant_cfg.initial_state = self.plant.initial_state.repeat_interleave(self.K, dim=0) # Repeat each env's initial_state for K rollouts
+        # extend the parameters batch size if they are tensors
+        if hasattr(rollout_plant_cfg, "params") and rollout_plant_cfg.params is not None:
+            for k, v in rollout_plant_cfg.params.__dict__.items():
+                if isinstance(v, torch.Tensor) and v.shape[0] == self.num_envs:
+                    setattr(rollout_plant_cfg.params, k, v.repeat_interleave(self.K, dim=0))
+        self._rollout_plant = rollout_plant_cfg.class_type(rollout_plant_cfg)  # Create a new plant instance for rollouts
 
     # Note: The `forward` method signature in `ControllerBase` is `forward(self, x, r, t=None)`.
     # MPPI typically only needs the current state `x` (current_state).
@@ -96,7 +104,7 @@ class MPPI(ControllerBase):
         """
         assert current_state.shape == (self.num_envs, self.state_dim), \
             f"Expected current_state shape to be ({self.num_envs}, {self.state_dim}), got {current_state.shape}"
-        current_state = current_state.to(self.cfg.device) # Ensure current_state is on the correct device
+        current_state = current_state.to(self.device) # Ensure current_state is on the correct device
 
         # 1. Sample control noise
         noise = self._sample_control_noise() # Shape: (num_envs, K, T, action_dim)
@@ -172,7 +180,7 @@ class MPPI(ControllerBase):
         if env_ids is None or len(env_ids) == self.num_envs:
             env_ids = self._ALL_INDICES # Reset all environments
         
-        self.u_nominal[env_ids] = torch.zeros(len(env_ids), self.T, self.action_dim, device=self.cfg.device)
+        self.u_nominal[env_ids] = torch.zeros(len(env_ids), self.T, self.action_dim, device=self.device)
 
     def _sample_control_noise(self) -> torch.Tensor:
         """
@@ -252,7 +260,7 @@ class MPPI(ControllerBase):
         #   action_trajs: (num_envs, K, T, action_dim)
         #   reference: (num_envs, T, state_dim) or None
         # Expected output shape: (num_envs, K)
-        total_costs = self.cfg.cost_function(state_rollouts_for_cost_fn, u_perturbed, reference)
+        total_costs = self.cost_function(state_rollouts_for_cost_fn, u_perturbed, reference)
 
         assert total_costs.shape == (num_envs, K), \
             f"Expected total_costs shape to be ({num_envs}, {K}), got {total_costs.shape}"
@@ -275,7 +283,7 @@ class MPPI(ControllerBase):
         """
         # total_costs shape: (num_envs, K)
         min_costs = torch.min(total_costs, dim=1, keepdim=True).values # Shape: (num_envs, 1)
-        exp_terms = torch.exp(-1.0 / self.cfg.alpha * (total_costs - min_costs))
+        exp_terms = torch.exp(-1.0 / self.alpha * (total_costs - min_costs))
         sum_exp = torch.sum(exp_terms, dim=1, keepdim=True) # Shape: (num_envs, 1)
         weights = exp_terms / (sum_exp + 1e-9) # Add epsilon for numerical stability
         return weights
