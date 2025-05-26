@@ -4,7 +4,6 @@ InputOutputSystem plant: n-order system described by input/output difference equ
 """
 from __future__ import annotations
 
-from scipy.signal import tf2ss
 from typing import TYPE_CHECKING
 from .state_space_system import StateSpaceSystem
 

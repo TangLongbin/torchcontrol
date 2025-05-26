@@ -5,8 +5,8 @@ ControllerCfg inherits SystemCfg and provides a middle layer for controller conf
 from __future__ import annotations
 
 from dataclasses import MISSING
-from torchcontrol.plants import PlantBase
-from torchcontrol.system import SystemCfg, configclass
+from ..plants import PlantBase
+from ..system import SystemCfg, configclass
 from .controller_base import ControllerBase
 
 @configclass

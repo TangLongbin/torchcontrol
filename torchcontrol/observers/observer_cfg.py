@@ -5,7 +5,7 @@ Configuration for ObserverBase class.
 from __future__ import annotations
 
 from dataclasses import MISSING
-from torchcontrol.system import SystemCfg, configclass
+from ..system import SystemCfg, configclass
 from .observer_base import ObserverBase
 
 @configclass

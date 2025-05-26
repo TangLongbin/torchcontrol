@@ -9,7 +9,7 @@ import torch
 from torchdiffeq import odeint
 from typing import TYPE_CHECKING
 from collections.abc import Sequence
-from torchcontrol.system import SystemBase
+from ..system import SystemBase
 
 if TYPE_CHECKING:
     from .plant_cfg import PlantCfg

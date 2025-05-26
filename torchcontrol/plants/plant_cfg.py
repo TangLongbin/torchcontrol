@@ -7,7 +7,7 @@ from __future__ import annotations
 import torch
 from torch import Tensor
 from dataclasses import MISSING
-from torchcontrol.system import SystemCfg, configclass
+from ..system import SystemCfg, configclass
 from .plant_base import PlantBase
 
 @configclass

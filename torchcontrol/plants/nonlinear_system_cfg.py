@@ -5,7 +5,7 @@ Configuration for NonlinearSystem plant (general nonlinear system).
 from __future__ import annotations
 
 import torch
-from torchcontrol.plants.plant_cfg import PlantCfg, configclass
+from .plant_cfg import PlantCfg, configclass
 from .nonlinear_system import NonlinearSystem
 
 @configclass

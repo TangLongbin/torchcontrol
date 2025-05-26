@@ -6,8 +6,8 @@ import os
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from torchcontrol.plants.nonlinear_system import NonlinearSystem
-from torchcontrol.plants.nonlinear_system_cfg import NonlinearSystemCfg, Parameters
+from torchcontrol.plants import NonlinearSystem
+from torchcontrol.plants import NonlinearSystemCfg, Parameters
 
 def nonlinear_oscillator(x, u, t, params):
     # x: [num_envs, 2], u: [num_envs, 1], t: scalar or [num_envs], params: Parameters

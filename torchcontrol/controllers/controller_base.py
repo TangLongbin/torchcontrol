@@ -8,8 +8,8 @@ from __future__ import annotations
 import abc
 import torch
 from typing import Sequence, TYPE_CHECKING
-from torchcontrol.plants import PlantBase
-from torchcontrol.system import SystemBase
+from ..plants import PlantBase
+from ..system import SystemBase
 
 if TYPE_CHECKING:
     from .controller_cfg import ControllerCfg
