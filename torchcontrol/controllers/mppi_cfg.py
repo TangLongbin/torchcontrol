@@ -74,7 +74,8 @@ class MPPICfg(ControllerCfg):
         # Check parameters
         assert isinstance(self.K, int) and self.K > 0, f"K must be a positive integer, got {self.K}"
         assert isinstance(self.T, int) and self.T > 0, f"T must be a positive integer, got {self.T}"
-        assert torch.all(self.sigma > 0), f"sigma must be positive, got {self.sigma[self.sigma <= 0]}"
+        assert torch.all(self.sigma > 0), \
+            f"sigma must be positive, got {self.sigma.item() if self.sigma.dim() == 0 else self.sigma[self.sigma <= 0]}"
         assert self.alpha > 0, f"alpha must be positive, got {self.alpha}"
         assert torch.all(self.u_min <= self.u_max), f"u_min ({self.u_min[self.u_min > self.u_max]}) \
             must be less than or equal to u_max ({self.u_max[self.u_min > self.u_max]})"
