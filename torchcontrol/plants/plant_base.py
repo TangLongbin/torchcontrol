@@ -9,7 +9,7 @@ import torch
 from torchdiffeq import odeint
 from typing import TYPE_CHECKING
 from collections.abc import Sequence
-from torchcontrol.system import SystemBase
+from ..system import SystemBase
 
 if TYPE_CHECKING:
     from .plant_cfg import PlantCfg
@@ -81,6 +81,60 @@ class PlantBase(SystemBase, metaclass=abc.ABCMeta):
         ) # Integrate the ODE
         self.state = state_trajectory[-1] # Get the last state
         return self.output(self.state, u, self.dt)
+
+    def rollout(self, u, step_by_step=True):
+        """
+        Rollout the plant dynamics for a given control input over `T` time steps.
+        Args:
+            u (Tensor[num_envs, `T`, action_dim]): Control input over the rollout
+            step_by_step (bool): If True, simulate the dynamics step by step, otherwise use simulate the dynamics for the entire horizon at once.
+        Returns:
+            state_rollouts (Tensor[num_envs, `T`, state_dim]): state rollouts over the rollout
+        """
+        # Check dimensions of the control input
+        assert u.dim() == 3, \
+            f"Input must be a 3D tensor, got {u.dim()}D tensor"
+        assert u.shape[0] == self.num_envs and u.shape[2] == self.action_dim, \
+            f"Input shape {u.shape} must be [{self.num_envs}, T, {self.action_dim}], got {u.shape}"
+        
+        # Initialize the state rollouts tensor
+        T = u.shape[1]  # rollout horizon length
+        state_rollouts = torch.zeros(self.num_envs, T, self.state_dim, device=self.device)
+        
+        # Two methods to simulate the dynamics
+        if step_by_step:
+            # Method No.1 : Simulate the dynamics step by step, slower but more accurate
+            # Store current state
+            current_state = self.state.clone() # store the current state
+            
+            # Simulate dynamics for T steps
+            for k in range(T):
+                state_rollouts[:, k, :] = self.state # Store the current state
+                u_k = u[:, k, :]                     # Get the control input
+                self.step(u_k)                      # Step the plant forward
+            
+            # Restore current state
+            self.state = current_state.clone()
+        else:
+            # Method No.2 : Use odeint to simulate the dynamics, faster but less accurate
+            # define the ODE function
+            def ode_func(t, x):
+                # Get the current input
+                k = int(t.item() // self.dt)  # Convert time to step index
+                u_k = u[:, k, :] if k < T else u[:, -1, :]
+                return self.forward(x, u_k, t)
+            
+            # Rollout the plant dynamics for T time steps
+            y = odeint(
+                func=ode_func,
+                y0=self.state,
+                t=torch.arange(0, T*self.dt, self.dt, device=self.device),
+                method=self.ode_method,
+                options=self.ode_options
+            ) # shape (T, num_envs, state_dim)
+            state_rollouts = y.transpose(0, 1) # Transpose to shape (num_envs, T, state_dim)
+        
+        return state_rollouts # shape (num_envs, T, state_dim)
 
     @abc.abstractmethod
     def output(self, x, u, t):

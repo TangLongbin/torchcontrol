@@ -9,11 +9,10 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-from torchcontrol.plants.nonlinear_system import NonlinearSystem
-from torchcontrol.plants.nonlinear_system_cfg import NonlinearSystemCfg, Parameters
+from torchcontrol.system import Parameters
+from torchcontrol.controllers import PID, PIDCfg
+from torchcontrol.plants import NonlinearSystem, NonlinearSystemCfg
 from torchcontrol.utils.math import quaternion_to_dcm
-from torchcontrol.controllers.pid import PID
-from torchcontrol.controllers.pid_cfg import PIDCfg
 from uav_thrust_descent_to_hover import uav_dynamics, uav_output
 
 class GeometricTrackingController(PID):
