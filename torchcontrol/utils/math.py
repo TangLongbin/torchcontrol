@@ -6,6 +6,7 @@ Utility functions for mathematical operations in PyTorch.
 import torch
 from torch import Tensor
 
+@torch.jit.script
 def skew_symmetric(vec: Tensor) -> Tensor:
     assert isinstance(vec, Tensor), "vec must be a torch.Tensor"
     assert vec.ndim == 2 and vec.shape[1] == 3, "vec must have shape (num_envs, 3)"
@@ -23,6 +24,7 @@ def skew_symmetric(vec: Tensor) -> Tensor:
         torch.stack([-vec[:, 1], vec[:, 0], zero], dim=1)
     ], dim=1)
 
+@torch.jit.script
 def quaternion_to_dcm(q: Tensor) -> Tensor:
     assert isinstance(q, Tensor), "q must be a torch.Tensor"
     assert q.ndim == 2 and q.shape[1] == 4, "q must have shape (num_envs, 4)"
@@ -41,6 +43,7 @@ def quaternion_to_dcm(q: Tensor) -> Tensor:
     ], dim=1)
     return C_B_I
 
+@torch.jit.script
 def omega_quat_matrix(omega: Tensor) -> Tensor:
     assert isinstance(omega, Tensor), "omega must be a torch.Tensor"
     assert omega.ndim == 2 and omega.shape[1] == 3, "omega must have shape (num_envs, 3)"
@@ -59,6 +62,7 @@ def omega_quat_matrix(omega: Tensor) -> Tensor:
         torch.stack([omega[:, 2], omega[:, 1], -omega[:, 0], zero], dim=1),
     ], dim=1)
 
+@torch.jit.script
 def quaternion_error(q: Tensor, q_ref: Tensor) -> Tensor:
     """
     Compute the orientation error between two quaternions as a rotation vector (axis-angle).
@@ -88,7 +92,7 @@ def quaternion_error(q: Tensor, q_ref: Tensor) -> Tensor:
     err_z = qw * rz + qx * ry - qy * rx + qz * rw
     quat_err = torch.stack([err_w, err_x, err_y, err_z], dim=-1)
     # Normalize
-    quat_err = quat_err / quat_err.norm(dim=-1, keepdim=True)
+    quat_err = quat_err / quat_err.norm(p=2, dim=-1, keepdim=True)
     # Compute rotation angle and axis
     theta = 2 * torch.acos(torch.clamp(quat_err[..., 0], -1.0, 1.0))  # (...,)
     sin_half_theta = torch.sqrt(1 - quat_err[..., 0] ** 2)
