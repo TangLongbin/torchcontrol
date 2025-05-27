@@ -84,7 +84,7 @@ class PID(ControllerBase):
         super().update(*args, **kwargs) # Call parent class update method
         for key in ['Kp', 'Ki', 'Kd', 'u_ff']:
             if key in kwargs:
-                val = kwargs[key].to(self.device)
+                val = torch.as_tensor(kwargs[key], device=self.device)
                 assert getattr(self, key).shape == val.shape, \
                     f"Shape mismatch for {key}: {getattr(self, key).shape} != {val.shape}"
                 setattr(self, key, val)
