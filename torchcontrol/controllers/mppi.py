@@ -7,6 +7,7 @@ from __future__ import annotations
 import copy
 import torch
 from typing import TYPE_CHECKING
+from ..plants import PlantBase, PlantCfg
 from .controller_base import ControllerBase
 
 if TYPE_CHECKING:
@@ -68,7 +69,7 @@ class MPPI(ControllerBase):
             self.u_max = torch.full((self.action_dim,), float(self.u_max), device=self.device)
 
         # For rollout simulation, create a new plant with batch_size = num_envs * K using plant's cfg
-        rollout_plant_cfg = copy.deepcopy(self.plant.cfg) # Use deepcopy to avoid modifying the original cfg
+        rollout_plant_cfg: PlantCfg = copy.deepcopy(self.plant.cfg) # Use deepcopy to avoid modifying the original cfg
         rollout_plant_cfg.num_envs = self.num_envs * self.K
         rollout_plant_cfg.initial_state = self.plant.initial_state.repeat_interleave(self.K, dim=0) # Repeat each env's initial_state for K rollouts
         # extend the parameters batch size if they are tensors
@@ -231,28 +232,14 @@ class MPPI(ControllerBase):
         # u_perturbed shape: (num_envs, K, T, action_dim) -> u_for_sim shape: (num_envs * K, T, action_dim)
         u_for_sim = u_perturbed.reshape(num_envs * K, T, action_dim)
 
-        # Initialize states for simulation
-        # current_state shape: (num_envs, state_dim)
-        # s_t shape: (num_envs * K, state_dim)
-        s_t = current_state.unsqueeze(1).repeat(1, K, 1).reshape(num_envs * K, state_dim)
+        # Initialize rollout plant for simulation
+        plant: PlantBase = self._rollout_plant                  # batch_size = num_envs * K
+        plant.reset()                                           # Reset the plant to its initial state
+        plant.state = current_state.repeat_interleave(K, dim=0) # shape: (num_envs * K, state_dim)
 
-        # Use a plant with correct batch size for rollouts
-        plant = self._rollout_plant
-
-        # Store simulated state trajectories
-        # state_rollouts_sim shape: (num_envs * K, T, state_dim)
-        state_rollouts_sim = torch.zeros(num_envs * K, T, state_dim, device=self.device)
-
-        # Simulate dynamics for T steps
-        for t_step in range(T):
-            state_rollouts_sim[:, t_step, :] = s_t
-            a_t = u_for_sim[:, t_step, :]  # Shape: (num_envs * K, action_dim)
-            plant.state = s_t  # Update plant state for the current step
-            s_t = plant.step(a_t)  # Step the plant forward, returns new state, shape: (num_envs * K, state_dim)
-        # Reshape simulated states to (num_envs, K, T, state_dim) for the cost function
-        state_rollouts_for_cost_fn = state_rollouts_sim.reshape(num_envs, K, T, state_dim)
-
-        # u_perturbed is already (num_envs, K, T, action_dim), which is the expected input for the cost function.
+        # Simulate the rollouts using the perturbed control sequences
+        state_rollouts = plant.rollout(u=u_for_sim)  # Shape: (num_envs * K, T, state_dim)
+        state_rollouts = state_rollouts.reshape(num_envs, K, T, state_dim) # Reshape back to (num_envs, K, T, state_dim)
 
         # Call the cost function (defined in mppi_cfg.py)
         # Expected input shapes:
@@ -260,8 +247,9 @@ class MPPI(ControllerBase):
         #   action_trajs: (num_envs, K, T, action_dim)
         #   reference: (num_envs, T, state_dim) or None
         # Expected output shape: (num_envs, K)
-        total_costs = self.cost_function(state_rollouts_for_cost_fn, u_perturbed, reference)
+        total_costs = self.cost_function(state_rollouts, u_perturbed, reference)
 
+        # Check the shape of total_costs
         assert total_costs.shape == (num_envs, K), \
             f"Expected total_costs shape to be ({num_envs}, {K}), got {total_costs.shape}"
         return total_costs
