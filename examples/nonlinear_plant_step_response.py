@@ -3,9 +3,14 @@ nonlinear_plant_step_response.py
 Example: Step response of a batch nonlinear system using NonlinearSystem.
 """
 import os
+import io
 import torch
 import numpy as np
+import imageio.v2 as imageio
 import matplotlib.pyplot as plt
+
+from tqdm import tqdm
+from concurrent.futures import ProcessPoolExecutor
 
 from torchcontrol.system import Parameters
 from torchcontrol.plants import NonlinearSystem, NonlinearSystemCfg
@@ -74,23 +79,44 @@ if __name__ == "__main__":
         t.append(t[-1] + dt)
     y = torch.stack(y, dim=1).cpu().numpy()  # [num_envs, steps+1, state_dim]
 
-    # Visualize x1 (position)
+    # Visualize x1 (position) as animated GIF
     save_dir = os.path.join(os.path.dirname(__file__), "results")
     os.makedirs(save_dir, exist_ok=True)
-    fig, axes = plt.subplots(height, width, figsize=(12, 10))
-    for idx in range(num_envs):
-        i, j = np.unravel_index(idx, (height, width))
-        ax = axes[i, j]
-        ax.plot(t, y[idx, :, 0], label='x1 (pos)')
-        ax.plot(t, y[idx, :, 1], label='x2 (vel)', linestyle='--', alpha=0.7)
-        ax.plot(t, np.ones_like(t), 'r--', label='Input')
-        ax.set_title(f'Env {idx} Step Response')
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('State')
-        ax.grid()
-        ax.legend(fontsize=8)
-    plt.tight_layout()
-    fig_path = os.path.join(save_dir, "nonlinear_plant_step_response.png")
-    plt.savefig(fig_path)
-    print("Step response plot saved to:", fig_path)
+    gif_path = os.path.join(save_dir, "nonlinear_plant_step_response.gif")
+    frames = []
+
+    def render_frame(frame_idx):
+        fig = plt.figure(figsize=(4 * width, 3 * height))
+        axes = []
+        for idx in range(num_envs):
+            i, j = np.unravel_index(idx, (height, width))
+            ax = fig.add_subplot(height, width, idx + 1)
+            axes.append(ax)
+            ax.clear()
+            ax.plot(t[:frame_idx+1], y[idx, :frame_idx+1, 0], label='x1 (pos)')
+            ax.plot(t[:frame_idx+1], y[idx, :frame_idx+1, 1], label='x2 (vel)', linestyle='--', alpha=0.7)
+            ax.plot(t, np.ones_like(t), 'r--', label='Input')
+            ax.set_title(f'Env {idx} Step Response')
+            ax.set_xlabel('Time (s)')
+            ax.set_ylabel('State')
+            ax.set_xlim([0, t[-1]])  # Fix x-axis length to 0-max(t)
+            ax.grid()
+            ax.legend(fontsize=8)
+        plt.tight_layout()
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png')
+        plt.close(fig)
+        buf.seek(0)
+        img = imageio.imread(buf)
+        buf.close()
+        return img
+
+    print("Rendering frames and creating GIF with multiprocessing, this may take a while...")
+    # Save every 10th frame for speed (dt=0.01 -> 100Hz, so 10 frames per second)
+    frame_stride = 10
+    frame_indices = list(range(0, len(t), frame_stride))
+    with ProcessPoolExecutor() as executor:
+        frames = list(tqdm(executor.map(render_frame, frame_indices), total=len(frame_indices), desc="Rendering GIF frames"))
+    imageio.mimsave(gif_path, frames, duration=0.04)
+    print("Step response GIF saved to:", gif_path)
     print("\033[1;32mTest completed successfully.\033[0m")

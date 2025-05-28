@@ -4,9 +4,15 @@ This script demonstrates how to create a second-order system using the InputOutp
 It simulates the step response of the system with different initial states and visualizes the results.
 """
 import os
+import io
 import torch
 import numpy as np
+import imageio.v2 as imageio
 import matplotlib.pyplot as plt
+
+from tqdm import tqdm
+from concurrent.futures import ProcessPoolExecutor
+
 from torchcontrol.plants import InputOutputSystem, InputOutputSystemCfg
 
 if __name__ == "__main__":
@@ -49,24 +55,47 @@ if __name__ == "__main__":
         y.append(output)
         t.append(t[-1] + dt)
     y = torch.cat(y, dim=1).tolist()  # Concatenate outputs and convert to list
-    
-    # Visualize the output
+    y_hist = y  # For compatibility with render_frame
+    # Reference is a step input of 1.0 for all time
+    r_hist = [[[1.0] for _ in range(len(y_hist[0]))] for _ in range(num_envs)]
+    # Visualization
     save_dir = os.path.join(os.path.dirname(__file__), "results")
     os.makedirs(save_dir, exist_ok=True)
-    fig, axes = plt.subplots(height, width, figsize=(12, 10))
-    for k in range(num_envs):
-        # index to xy
-        i, j = np.unravel_index(k, (height, width))
-        ax = axes[i, j]
-        ax.plot(t, y[k], label='Output')
-        ax.plot(t, u * len(t), 'r--', label='Input')
-        ax.set_title(f'Env {k} Step Response')
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('Output')
-        ax.grid()
-        ax.legend()
-    plt.tight_layout()
-    fig_path = os.path.join(save_dir, 'second_order_plant_step_response.png')
-    plt.savefig(fig_path)
-    print("Step response plot saved to:", fig_path)
+    gif_path = os.path.join(save_dir, 'second_order_plant_step_response.gif')
+    frames = []
+    t_arr = [k * dt for k in range(int(T / dt) + 1)]
+
+    def render_frame(frame_idx):
+        fig = plt.figure(figsize=(4 * width, 3 * height))
+        axes = []
+        for idx in range(num_envs):
+            i, j = np.unravel_index(idx, (height, width))
+            ax = fig.add_subplot(height, width, idx + 1)
+            axes.append(ax)
+            ax.clear()
+            ax.plot(t_arr[:frame_idx+1], y_hist[idx][:frame_idx+1], label='Output (y)')
+            ax.plot(t_arr[:frame_idx+1], r_hist[idx][:frame_idx+1], 'r--', label='Reference (r)')
+            ax.set_title(f'Env {idx} Step Response')
+            ax.set_xlabel('Time (s)')
+            ax.set_ylabel('Value')
+            ax.set_xlim([0, t_arr[-1]])  # Fix x-axis length
+            ax.grid()
+            ax.legend()
+        plt.tight_layout()
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png')
+        plt.close(fig)
+        buf.seek(0)
+        img = imageio.imread(buf)
+        buf.close()
+        return img
+
+    print("Rendering frames and creating GIF with multiprocessing, this may take a while...")
+    # Save every 10th frame for speed (dt=0.01 -> 100Hz, so 10 frames per second)
+    frame_stride = 10
+    frame_indices = list(range(0, len(t_arr), frame_stride))
+    with ProcessPoolExecutor() as executor:
+        frames = list(tqdm(executor.map(render_frame, frame_indices), total=len(frame_indices), desc="Rendering GIF frames"))
+    imageio.mimsave(gif_path, frames, duration=0.04)
+    print(f"Step response GIF saved to {gif_path}")
     print("\033[1;32mTest completed successfully.\033[0m")

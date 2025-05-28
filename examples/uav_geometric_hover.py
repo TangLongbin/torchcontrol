@@ -2,16 +2,19 @@
 uav_geometric_hover.py
 Example: Geometric hover control of a batch quadrotor UAV using NonlinearSystem and a simple geometric controller.
 """
-
 import os
+import io
 import torch
 import numpy as np
+import imageio.v2 as imageio
 import matplotlib.pyplot as plt
+
+from tqdm import tqdm
+from concurrent.futures import ProcessPoolExecutor
 
 from torchcontrol.system import Parameters
 from torchcontrol.plants import NonlinearSystem, NonlinearSystemCfg
 from uav_thrust_descent_to_hover import uav_dynamics, uav_output  # Use absolute import for script execution
-
 
 class GeometricHoverController:
     def __init__(self, m, g, dt, num_envs, device):
@@ -87,23 +90,45 @@ if __name__ == "__main__":
 
     y = torch.stack(y, dim=1).cpu().numpy()  # [num_envs, steps+1, state_dim]
 
-    # Plotting results
+    # Visualize tracking as animated GIF
     save_dir = os.path.join(os.path.dirname(__file__), "results")
     os.makedirs(save_dir, exist_ok=True)
-    fig, axes = plt.subplots(height, width, figsize=(12, 10))
-    for idx in range(num_envs):
-        i, j = np.unravel_index(idx, (height, width))
-        ax = axes[i, j]
-        ax.plot(t_arr, y[idx, :, 2], label='z (pos)')
-        ax.plot(t_arr, y[idx, :, 5], label='vz (vel)', linestyle='--')
-        ax.axhline(1.0, color='r', linestyle=':', label='z_ref')
-        ax.set_title(f'Env {idx} Hover')
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('State')
-        ax.grid()
-        ax.legend(fontsize=8)
-    plt.tight_layout()
-    fig_path = os.path.join(save_dir, "uav_geometric_hover.png")
-    plt.savefig(fig_path)
-    print("Geometric hover plot saved to:", fig_path)
+    gif_path = os.path.join(save_dir, "uav_geometric_hover.gif")
+    frames = []
+    t_arr = [k * dt for k in range(steps + 1)]
+
+    def render_frame(frame_idx):
+        fig = plt.figure(figsize=(4 * width, 3 * height))
+        axes = []
+        for idx in range(num_envs):
+            i, j = np.unravel_index(idx, (height, width))
+            ax = fig.add_subplot(height, width, idx + 1)  # 2D subplot, no projection
+            axes.append(ax)
+            ax.clear()
+            ax.plot(t_arr[:frame_idx+1], y[idx, :frame_idx+1, 2], label='z (altitude)')
+            ax.plot(t_arr[:frame_idx+1], np.ones_like(t_arr[:frame_idx+1]), 'r--', label='Reference (z=1)')
+            ax.plot(t_arr[:frame_idx+1], y[idx, :frame_idx+1, 5], label='vz (vertical speed)', linestyle='--', alpha=0.7)
+            ax.set_title(f'Env {idx} Hover')
+            ax.set_xlabel('Time (s)')
+            ax.set_ylabel('Value')
+            ax.set_xlim([0, t_arr[-1]])  # Fix x-axis length
+            ax.grid()
+            ax.legend()
+        plt.tight_layout()
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png')
+        plt.close(fig)
+        buf.seek(0)
+        img = imageio.imread(buf)
+        buf.close()
+        return img
+
+    print("Rendering frames and creating GIF with multiprocessing, this may take a while...")
+    # Save every 10th frame for speed (dt=0.01 -> 100Hz, so 10 frames per second)
+    frame_stride = 10
+    frame_indices = list(range(0, len(t_arr), frame_stride))
+    with ProcessPoolExecutor() as executor:
+        frames = list(tqdm(executor.map(render_frame, frame_indices), total=len(frame_indices), desc="Rendering GIF frames"))
+    imageio.mimsave(gif_path, frames, duration=0.04)
+    print(f"Hover GIF saved to {gif_path}")
     print("\033[1;32mTest completed successfully.\033[0m")
