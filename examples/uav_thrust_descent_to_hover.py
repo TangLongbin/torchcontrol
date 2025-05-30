@@ -5,17 +5,14 @@ This simulates a UAV starting with downward velocity and 90% hover thrust,
 switching to 100% hover thrust when vertical speed reaches zero, to achieve hover.
 """
 import os
-import io
 import torch
 import numpy as np
-import imageio.v2 as imageio
-import matplotlib.pyplot as plt
 
 from tqdm import tqdm
-from concurrent.futures import ProcessPoolExecutor
 
 from torchcontrol.system import Parameters
 from torchcontrol.plants import NonlinearSystem, NonlinearSystemCfg
+from torchcontrol.utils.visualization import render_batch_gif
 from torchcontrol.utils.math import quaternion_to_dcm, omega_quat_matrix
 
 def uav_dynamics(x, u, t, params):
@@ -95,12 +92,12 @@ if __name__ == "__main__":
     # Compute hover thrust as norm of gravity * mass (per env)
     hover_thrust = m * g[:, 2].abs()  # (num_envs,)
     u = torch.zeros(num_envs, 4, device=device)
-    t_arr = [0.0]
+    t_arr = np.array([k * dt for k in range(steps + 1)])
     y = [initial_state]
     vz_crossed = torch.zeros(num_envs, dtype=torch.bool, device=device)
 
     # Main simulation loop
-    for k in range(steps):
+    for k in tqdm(range(steps), desc="Simulating UAV descent to hover"):
         last_vz = y[-1][:, 5]
         vz_now_crossed = (~vz_crossed) & (last_vz <= 0)
         vz_crossed = vz_crossed | vz_now_crossed
@@ -108,48 +105,41 @@ if __name__ == "__main__":
         u[vz_crossed, 0] = hover_thrust[vz_crossed]  # Switch to hover thrust
         output = plant.step(u)
         y.append(output)
-        t_arr.append(t_arr[-1] + dt)
-
     y = torch.stack(y, dim=1).cpu().numpy()
-    x = y  # For compatibility with render_frame
-    # Visualize descent as animated GIF
+
+    # Visualization
     save_dir = os.path.join(os.path.dirname(__file__), "results")
     os.makedirs(save_dir, exist_ok=True)
     gif_path = os.path.join(save_dir, "uav_thrust_descent_to_hover.gif")
-    frames = []
-    t_arr = [k * dt for k in range(steps + 1)]
 
-    def render_frame(frame_idx):
-        fig = plt.figure(figsize=(4 * width, 3 * height))
-        axes = []
-        for idx in range(num_envs):
-            i, j = np.unravel_index(idx, (height, width))
-            ax = fig.add_subplot(height, width, idx + 1)
-            axes.append(ax)
-            ax.clear()
-            ax.plot(t_arr[:frame_idx+1], x[idx, :frame_idx+1, 2], label='z (altitude)')
-            ax.plot(t_arr[:frame_idx+1], x[idx, :frame_idx+1, 5], label='vz (velocity)', linestyle='--', alpha=0.7)
-            ax.set_title(f'Env {idx} Descent -> Hover')
-            ax.set_xlabel('Time (s)')
-            ax.set_ylabel('Value')
-            ax.set_xlim([0, t_arr[-1]])  # Fix x-axis length
-            ax.grid()
-            ax.legend()
-        plt.tight_layout()
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png')
-        plt.close(fig)
-        buf.seek(0)
-        img = imageio.imread(buf)
-        buf.close()
-        return img
+    # Prepare time axis for x_hist
+    x_hist = np.tile(t_arr[np.newaxis, :, np.newaxis], (num_envs, 1, 2))
+    xlim = [0, t_arr[-1]]
+    xlabel = "Time (s)"
 
-    print("Rendering frames and creating GIF with multiprocessing, this may take a while...")
-    # Save every 10th frame for speed (dt=0.01 -> 100Hz, so 10 frames per second)
-    frame_stride = 10
-    frame_indices = list(range(0, len(t_arr), frame_stride))
-    with ProcessPoolExecutor() as executor:
-        frames = list(tqdm(executor.map(render_frame, frame_indices), total=len(frame_indices), desc="Rendering GIF frames"))
-    imageio.mimsave(gif_path, frames, duration=0.04)
-    print(f"Descent GIF saved to {gif_path}")
+    # Prepare y_hist for z and vz
+    z = y[:, :, 2]
+    vz = y[:, :, 5]
+    y_hist = np.stack([z, vz], axis=-1)
+    labels = ["z (altitude)", "vz (velocity)"]
+    line_styles = ['-', '--']
+    ylabel = "Value"
+    titles = [f"Env {i} Descent -> Hover" for i in range(num_envs)]
+
+    # Use render_batch_gif utility for batch GIF rendering
+    render_batch_gif(
+        gif_path=gif_path,
+        x_hist=x_hist,
+        y_hist=y_hist,
+        width=width,
+        height=height,
+        labels=labels,
+        line_styles=line_styles,
+        titles=titles,
+        frame_stride=10,
+        duration=0.04,
+        xlim=xlim,
+        ylabel=ylabel,
+        xlabel=xlabel,
+    )
     print("\033[1;32mTest completed successfully.\033[0m")

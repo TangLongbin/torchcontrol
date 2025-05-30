@@ -3,17 +3,14 @@ nonlinear_plant_step_response.py
 Example: Step response of a batch nonlinear system using NonlinearSystem.
 """
 import os
-import io
 import torch
 import numpy as np
-import imageio.v2 as imageio
-import matplotlib.pyplot as plt
 
 from tqdm import tqdm
-from concurrent.futures import ProcessPoolExecutor
 
 from torchcontrol.system import Parameters
 from torchcontrol.plants import NonlinearSystem, NonlinearSystemCfg
+from torchcontrol.utils.visualization import render_batch_gif
 
 def nonlinear_oscillator(x, u, t, params):
     # x: [num_envs, 2], u: [num_envs, 1], t: scalar or [num_envs], params: Parameters
@@ -73,50 +70,55 @@ if __name__ == "__main__":
     u = torch.ones(num_envs, 1, device=device)  # Step input for all envs
     t = [0.0]
     y = [initial_states]
-    for k in range(int(T / dt)):
+    for k in tqdm(range(int(T / dt)), desc="Simulating step response"):
         output = plant.step(u)  # [num_envs, state_dim]
         y.append(output)
         t.append(t[-1] + dt)
-    y = torch.stack(y, dim=1).cpu().numpy()  # [num_envs, steps+1, state_dim]
+    u = u.repeat(1, len(y)) # shape: [num_envs, num_steps]
+    y = torch.stack(y, dim=1) # shape: [num_envs, num_steps, state_dim]
 
-    # Visualize x1 (position) as animated GIF
+
+    """
+    Visualize x1 (position), x2 (velocity), and input (u) as animated GIF
+    """
+    # Save directory for results
     save_dir = os.path.join(os.path.dirname(__file__), "results")
     os.makedirs(save_dir, exist_ok=True)
     gif_path = os.path.join(save_dir, "nonlinear_plant_step_response.gif")
-    frames = []
+    
+    # Title for each environment
+    titles = [f"Env {i} Step Response" for i in range(num_envs)]
+    
+    # Let time be the x-axis
+    t = np.array(t)  # shape: [num_steps]
+    x_hist = np.tile(t[np.newaxis, :, np.newaxis], (num_envs, 1, 3))  # [num_envs, num_steps, 3]
+    xlim = [0, t[-1]]  # x-axis limits
+    xlabel = "Time (s)"
+    
+    # Let x1 (pos), x2 (vel) and u (input) be the y-axis curves
+    x1 = y[:, :, 0].cpu().numpy()  # Position, shape: [num_envs, num_steps]
+    x2 = y[:, :, 1].cpu().numpy()  # Velocity, shape: [num_envs, num_steps]
+    u = u.cpu().numpy()  # Input, shape: [num_envs, num_steps]
+    # Stack y to include reference for visualization
+    y_hist = np.stack([x1, x2, u], axis=-1)  # [num_envs, num_steps, 3]
+    labels = ["x1 (pos)", "x2 (vel)", "u (input)"]  # Labels for each curve
+    line_styles = ['-', '--', 'r--'] # Line styles for each curve
+    ylabel = "Value"
 
-    def render_frame(frame_idx):
-        fig = plt.figure(figsize=(4 * width, 3 * height))
-        axes = []
-        for idx in range(num_envs):
-            i, j = np.unravel_index(idx, (height, width))
-            ax = fig.add_subplot(height, width, idx + 1)
-            axes.append(ax)
-            ax.clear()
-            ax.plot(t[:frame_idx+1], y[idx, :frame_idx+1, 0], label='x1 (pos)')
-            ax.plot(t[:frame_idx+1], y[idx, :frame_idx+1, 1], label='x2 (vel)', linestyle='--', alpha=0.7)
-            ax.plot(t, np.ones_like(t), 'r--', label='Input')
-            ax.set_title(f'Env {idx} Step Response')
-            ax.set_xlabel('Time (s)')
-            ax.set_ylabel('State')
-            ax.set_xlim([0, t[-1]])  # Fix x-axis length to 0-max(t)
-            ax.grid()
-            ax.legend(fontsize=8)
-        plt.tight_layout()
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png')
-        plt.close(fig)
-        buf.seek(0)
-        img = imageio.imread(buf)
-        buf.close()
-        return img
-
-    print("Rendering frames and creating GIF with multiprocessing, this may take a while...")
-    # Save every 10th frame for speed (dt=0.01 -> 100Hz, so 10 frames per second)
-    frame_stride = 10
-    frame_indices = list(range(0, len(t), frame_stride))
-    with ProcessPoolExecutor() as executor:
-        frames = list(tqdm(executor.map(render_frame, frame_indices), total=len(frame_indices), desc="Rendering GIF frames"))
-    imageio.mimsave(gif_path, frames, duration=0.04)
-    print("Step response GIF saved to:", gif_path)
+    # Use render_batch_gif utility for multi-curve GIF rendering
+    render_batch_gif(
+        gif_path=gif_path,
+        x_hist=x_hist, # [num_envs, num_steps, 1]
+        y_hist=y_hist, # [num_envs, num_steps, 3]
+        width=width,
+        height=height,
+        labels=labels,
+        line_styles=line_styles,
+        titles=titles,
+        frame_stride=10,
+        duration=0.04,
+        xlim=xlim,
+        ylabel=ylabel,
+        xlabel=xlabel,
+    )
     print("\033[1;32mTest completed successfully.\033[0m")

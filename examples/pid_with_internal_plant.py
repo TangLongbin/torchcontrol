@@ -3,17 +3,14 @@ pid_with_internal_plant.py
 Example script to test the PID controller in torchcontrol with an internal second-order plant (InputOutputSystem).
 """
 import os
-import io
 import torch
 import numpy as np
-import imageio.v2 as imageio
-import matplotlib.pyplot as plt
 
 from tqdm import tqdm
-from concurrent.futures import ProcessPoolExecutor
 
 from torchcontrol.controllers import PID, PIDCfg
 from torchcontrol.plants import InputOutputSystem, InputOutputSystemCfg
+from torchcontrol.utils.visualization import render_batch_gif
 
 if __name__ == "__main__":
     # System and simulation parameters
@@ -69,7 +66,7 @@ if __name__ == "__main__":
     u_hist = [torch.zeros((num_envs, 1), device=device)]
     e_hist = [torch.zeros((num_envs, 1), device=device)]
     pid.reset()
-    for k in range(int(T / dt)):
+    for k in tqdm(range(int(T / dt)), desc="Simulating PID control"):
         u = pid.step(r=setpoint)  # PID computes new control based on reference
         y = plant.step(u)  # Plant computes new output based on control
         e = setpoint - y  # Compute the error
@@ -86,40 +83,37 @@ if __name__ == "__main__":
     save_dir = os.path.join(os.path.dirname(__file__), "results")
     os.makedirs(save_dir, exist_ok=True)
     gif_path = os.path.join(save_dir, 'pid_with_internal_plant.gif')
-    frames = []
-    t_arr = [k * dt for k in range(int(T / dt) + 1)]
 
-    def render_frame(frame_idx):
-        fig = plt.figure(figsize=(4 * width, 3 * height))
-        axes = []
-        for idx in range(num_envs):
-            i, j = np.unravel_index(idx, (height, width))
-            ax = fig.add_subplot(height, width, idx + 1)
-            axes.append(ax)
-            ax.clear()
-            ax.plot(t_arr[:frame_idx+1], y_hist[idx][:frame_idx+1], label='Output (y)')
-            ax.plot(t_arr[:frame_idx+1], r_hist[idx][:frame_idx+1], 'r--', label='Reference (r)')
-            ax.set_title(f'Env {idx}')
-            ax.set_xlabel('Time (s)')
-            ax.set_ylabel('Value')
-            ax.set_xlim([0, t_arr[-1]])  # Fix x-axis length
-            ax.grid()
-            ax.legend()
-        plt.tight_layout()
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png')
-        plt.close(fig)
-        buf.seek(0)
-        img = imageio.imread(buf)
-        buf.close()
-        return img
+    # Prepare time axis for x_hist
+    t_arr = np.array([k * dt for k in range(int(T / dt) + 1)])
+    x_hist = np.tile(t_arr[np.newaxis, :, np.newaxis], (num_envs, 1, 2))  # [num_envs, num_steps, 2]
+    xlim = [0, t_arr[-1]]
+    xlabel = "Time (s)"
 
-    print("Rendering frames and creating GIF with multiprocessing, this may take a while...")
-    # Save every 5th frame for speed (dt=0.01 -> 100Hz, so 20 fps)
-    frame_stride = 5
-    frame_indices = list(range(0, len(t_arr), frame_stride))
-    with ProcessPoolExecutor() as executor:
-        frames = list(tqdm(executor.map(render_frame, frame_indices), total=len(frame_indices), desc="Rendering GIF frames"))
-    imageio.mimsave(gif_path, frames, duration=0.04)
-    print(f"PID test GIF saved to {gif_path}")
+    # Prepare y_hist for output and reference
+    y_hist_np = np.stack([
+        np.array(y_hist),  # Output (y), shape [num_envs, num_steps]
+        np.array(r_hist),  # Reference (r), shape [num_envs, num_steps]
+    ], axis=-1)  # [num_envs, num_steps, 2]
+    labels = ["Output (y)", "Reference (r)"]
+    line_styles = ['-', 'r--']
+    ylabel = "Value"
+    titles = [f"Env {i}" for i in range(num_envs)]
+
+    # Use render_batch_gif utility for batch GIF rendering
+    render_batch_gif(
+        gif_path=gif_path,
+        x_hist=x_hist,
+        y_hist=y_hist_np,
+        width=width,
+        height=height,
+        labels=labels,
+        line_styles=line_styles,
+        titles=titles,
+        frame_stride=5,
+        duration=0.04,
+        xlim=xlim,
+        ylabel=ylabel,
+        xlabel=xlabel,
+    )
     print("\033[1;32mTest completed successfully.\033[0m")
