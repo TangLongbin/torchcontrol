@@ -2,16 +2,16 @@
 uav_geometric_hover.py
 Example: Geometric hover control of a batch quadrotor UAV using NonlinearSystem and a simple geometric controller.
 """
-
 import os
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
+
+from tqdm import tqdm
 
 from torchcontrol.system import Parameters
 from torchcontrol.plants import NonlinearSystem, NonlinearSystemCfg
+from torchcontrol.utils.visualization import render_batch_gif
 from uav_thrust_descent_to_hover import uav_dynamics, uav_output  # Use absolute import for script execution
-
 
 class GeometricHoverController:
     def __init__(self, m, g, dt, num_envs, device):
@@ -79,7 +79,7 @@ if __name__ == "__main__":
     y = [initial_state]
 
     # Main simulation loop
-    for k in range(steps):
+    for k in tqdm(range(steps), desc="Simulating hover control"):
         u = controller.step(y[-1])
         output = plant.step(u)
         y.append(output)
@@ -87,23 +87,41 @@ if __name__ == "__main__":
 
     y = torch.stack(y, dim=1).cpu().numpy()  # [num_envs, steps+1, state_dim]
 
-    # Plotting results
+    # Visualization
     save_dir = os.path.join(os.path.dirname(__file__), "results")
     os.makedirs(save_dir, exist_ok=True)
-    fig, axes = plt.subplots(height, width, figsize=(12, 10))
-    for idx in range(num_envs):
-        i, j = np.unravel_index(idx, (height, width))
-        ax = axes[i, j]
-        ax.plot(t_arr, y[idx, :, 2], label='z (pos)')
-        ax.plot(t_arr, y[idx, :, 5], label='vz (vel)', linestyle='--')
-        ax.axhline(1.0, color='r', linestyle=':', label='z_ref')
-        ax.set_title(f'Env {idx} Hover')
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('State')
-        ax.grid()
-        ax.legend(fontsize=8)
-    plt.tight_layout()
-    fig_path = os.path.join(save_dir, "uav_geometric_hover.png")
-    plt.savefig(fig_path)
-    print("Geometric hover plot saved to:", fig_path)
+    gif_path = os.path.join(save_dir, "uav_geometric_hover.gif")
+
+    # Prepare time axis for x_hist
+    t_arr = np.array([k * dt for k in range(steps + 1)])
+    x_hist = np.tile(t_arr[np.newaxis, :, np.newaxis], (num_envs, 1, 3))
+    xlim = [0, t_arr[-1]]
+    xlabel = "Time (s)"
+
+    # Prepare y_hist for z, reference, and vz
+    z = y[:, :, 2]  # z (altitude)
+    vz = y[:, :, 5] # vz (vertical speed)
+    ref = np.ones_like(z)
+    y_hist = np.stack([z, ref, vz], axis=-1)
+    labels = ["z (altitude)", "Reference (z=1)", "vz (vertical speed)"]
+    line_styles = ['-', 'r--', '--']
+    ylabel = "Value"
+    titles = [f"Env {i} Hover" for i in range(num_envs)]
+
+    # Use render_batch_gif utility for batch GIF rendering
+    render_batch_gif(
+        gif_path=gif_path,
+        x_hist=x_hist,
+        y_hist=y_hist,
+        width=width,
+        height=height,
+        labels=labels,
+        line_styles=line_styles,
+        titles=titles,
+        frame_stride=10,
+        duration=0.04,
+        xlim=xlim,
+        ylabel=ylabel,
+        xlabel=xlabel,
+    )
     print("\033[1;32mTest completed successfully.\033[0m")

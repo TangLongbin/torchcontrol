@@ -57,17 +57,17 @@ pip install -e .
 
 ![UAV MPPI Tracking](assets/uav_mppi_tracking.gif)
 
-### Batch Step Response (Second-Order System)
-
-![Second Order Step Response](assets/second_order_plant_step_response.png)
-
 ### Batch PID Control (Internal Plant)
 
-![PID with Internal Plant](assets/pid_with_internal_plant.png)
+![PID with Internal Plant](assets/pid_with_internal_plant.gif)
 
-### UAV Geometric Hover (Batch Quadrotor)
+### Batch Step Response (Second-Order System)
 
-![UAV Geometric Hover](assets/uav_geometric_hover.png)
+![Second Order Step Response](assets/second_order_plant_step_response.gif)
+
+### Nonlinear System Step Response (Batch)
+
+![Nonlinear Plant Step Response](assets/nonlinear_plant_step_response.gif)
 
 ---
 

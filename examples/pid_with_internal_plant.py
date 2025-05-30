@@ -4,9 +4,13 @@ Example script to test the PID controller in torchcontrol with an internal secon
 """
 import os
 import torch
-import matplotlib.pyplot as plt
+import numpy as np
+
+from tqdm import tqdm
+
 from torchcontrol.controllers import PID, PIDCfg
 from torchcontrol.plants import InputOutputSystem, InputOutputSystemCfg
+from torchcontrol.utils.visualization import render_batch_gif
 
 if __name__ == "__main__":
     # System and simulation parameters
@@ -62,7 +66,7 @@ if __name__ == "__main__":
     u_hist = [torch.zeros((num_envs, 1), device=device)]
     e_hist = [torch.zeros((num_envs, 1), device=device)]
     pid.reset()
-    for k in range(int(T / dt)):
+    for k in tqdm(range(int(T / dt)), desc="Simulating PID control"):
         u = pid.step(r=setpoint)  # PID computes new control based on reference
         y = plant.step(u)  # Plant computes new output based on control
         e = setpoint - y  # Compute the error
@@ -78,22 +82,38 @@ if __name__ == "__main__":
     # Visualization
     save_dir = os.path.join(os.path.dirname(__file__), "results")
     os.makedirs(save_dir, exist_ok=True)
-    fig, axes = plt.subplots(height, width, figsize=(12, 10))
-    t_arr = [k * dt for k in range(int(T / dt) + 1)]
-    for k in range(num_envs):
-        i, j = divmod(k, width)
-        ax = axes[i, j]
-        ax.plot(t_arr, y_hist[k], label='Output (y)')
-        ax.plot(t_arr, r_hist[k], 'r--', label='Reference (r)')
-        # ax.plot(t_arr, u_hist[k], label='Control (u)')
-        # ax.plot(t_arr, e_hist[k], label='Error')
-        ax.set_title(f'Env {k}')
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('Value')
-        ax.grid()
-        ax.legend()
-    plt.tight_layout()
-    fig_path = os.path.join(save_dir, 'pid_with_internal_plant.png')
-    plt.savefig(fig_path)
-    print(f"PID test plot saved to {fig_path}")
+    gif_path = os.path.join(save_dir, 'pid_with_internal_plant.gif')
+
+    # Prepare time axis for x_hist
+    t_arr = np.array([k * dt for k in range(int(T / dt) + 1)])
+    x_hist = np.tile(t_arr[np.newaxis, :, np.newaxis], (num_envs, 1, 2))  # [num_envs, num_steps, 2]
+    xlim = [0, t_arr[-1]]
+    xlabel = "Time (s)"
+
+    # Prepare y_hist for output and reference
+    y_hist_np = np.stack([
+        np.array(y_hist),  # Output (y), shape [num_envs, num_steps]
+        np.array(r_hist),  # Reference (r), shape [num_envs, num_steps]
+    ], axis=-1)  # [num_envs, num_steps, 2]
+    labels = ["Output (y)", "Reference (r)"]
+    line_styles = ['-', 'r--']
+    ylabel = "Value"
+    titles = [f"Env {i}" for i in range(num_envs)]
+
+    # Use render_batch_gif utility for batch GIF rendering
+    render_batch_gif(
+        gif_path=gif_path,
+        x_hist=x_hist,
+        y_hist=y_hist_np,
+        width=width,
+        height=height,
+        labels=labels,
+        line_styles=line_styles,
+        titles=titles,
+        frame_stride=5,
+        duration=0.04,
+        xlim=xlim,
+        ylabel=ylabel,
+        xlabel=xlabel,
+    )
     print("\033[1;32mTest completed successfully.\033[0m")
