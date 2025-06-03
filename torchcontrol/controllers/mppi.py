@@ -75,7 +75,7 @@ class MPPI(ControllerBase):
         # extend the parameters batch size if they are tensors
         if hasattr(rollout_plant_cfg, "params") and rollout_plant_cfg.params is not None:
             for k, v in rollout_plant_cfg.params.__dict__.items():
-                if isinstance(v, torch.Tensor) and v.shape[0] == self.num_envs:
+                if isinstance(v, torch.Tensor) and v.ndim > 0 and v.shape[0] == self.num_envs:
                     setattr(rollout_plant_cfg.params, k, v.repeat_interleave(self.K, dim=0))
         self._rollout_plant = rollout_plant_cfg.class_type(rollout_plant_cfg)  # Create a new plant instance for rollouts
 
