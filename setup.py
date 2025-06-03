@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="torchcontrol",
-    version="0.1.2",
+    version="0.1.3",
     description="A parallel control system simulation and control library based on PyTorch.",
     author="Tang Longbin",
     packages=find_packages(),
@@ -11,7 +11,9 @@ setup(
         "torchdiffeq",
         "scipy",
         "numpy",
-        "matplotlib"
+        "matplotlib",
+        "tqdm",
+        "imageio"
     ],
     python_requires=">=3.8",
 )

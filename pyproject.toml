@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "torchcontrol"
-version = "0.1.2"
+version = "0.1.3"
 description = "A parallel control system simulation and control library based on PyTorch."
 authors = [
     { name = "Tang Longbin" }
@@ -16,5 +16,7 @@ dependencies = [
     "torchdiffeq",
     "scipy",
     "numpy",
-    "matplotlib"
+    "matplotlib",
+    "tqdm",
+    "imageio"
 ]
