@@ -4,6 +4,7 @@ Base configuration class for SystemBase. Uses configclass decorator for style co
 """
 from __future__ import annotations
 
+import torch
 from dataclasses import MISSING, dataclass
 from .system_base import SystemBase
 
@@ -47,4 +48,4 @@ class SystemCfg:
         assert self.state_dim > 0, "state_dim must be greater than 0"
         assert self.action_dim > 0, "action_dim must be greater than 0"
         assert self.dt > 0, "dt must be greater than 0"
-        assert self.device in ["cpu", "cuda"], "device must be 'cpu' or 'cuda'"
+        self.device = torch.device(self.device)
