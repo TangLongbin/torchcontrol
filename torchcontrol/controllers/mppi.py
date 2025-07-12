@@ -54,19 +54,16 @@ class MPPI(ControllerBase):
         self.u_min = cfg.u_min.to(self.device)
         self.u_max = cfg.u_max.to(self.device)
         self.cost_function = cfg.cost_function # Callable for computing costs
-        
+
         # Initialize nominal control sequence (mean), shape: (num_envs, T, action_dim)
         self.u_nominal = torch.zeros(self.num_envs, self.T, self.action_dim, device=self.device)
 
-        # If sigma is a scalar, convert to tensor of shape (action_dim,)
-        if self.sigma.dim() == 0:
-            self.sigma = torch.full((self.action_dim,), float(self.sigma), device=self.device)
-        
-        # If u_min and u_max are scalars, convert to tensors of shape (action_dim,)
-        if self.u_min.dim() == 0:
-            self.u_min = torch.full((self.action_dim,), float(self.u_min), device=self.device)
-        if self.u_max.dim() == 0:
-            self.u_max = torch.full((self.action_dim,), float(self.u_max), device=self.device)
+        # Convert self.sigma to tensor of shape (num_envs, action_dim)
+        self.sigma = self._expand_shape(self.sigma)
+
+        # Convert u_min and u_max to tensors of shape (num_envs, action_dim)
+        self.u_min = self._expand_shape(self.u_min)
+        self.u_max = self._expand_shape(self.u_max)
 
         # For rollout simulation, create a new plant with batch_size = num_envs * K using plant's cfg
         rollout_plant_cfg: PlantCfg = copy.deepcopy(self.plant.cfg) # Use deepcopy to avoid modifying the original cfg
@@ -115,8 +112,8 @@ class MPPI(ControllerBase):
 
         # Apply control limits
         u_perturbed = torch.clamp(u_perturbed,
-                                  self.u_min.view(1, 1, 1, -1),
-                                  self.u_max.view(1, 1, 1, -1))
+                                  self.u_min.view(self.num_envs, 1, 1, self.action_dim),
+                                  self.u_max.view(self.num_envs, 1, 1, self.action_dim))
 
         # 3. Simulate rollouts and 4. Compute costs
         total_costs = self._compute_rollout_cost(current_state, u_perturbed, reference) # Shape: (num_envs, K)
@@ -132,8 +129,7 @@ class MPPI(ControllerBase):
         action = self.u_nominal[:, 0, :].clone() # Shape: (num_envs, action_dim)
 
         # 8. Receding horizon: shift nominal control sequence for next time step
-        self.u_nominal[:, :-1, :] = self.u_nominal[:, 1:, :].clone()
-        self.u_nominal[:, -1, :] = 0 # Re-initialize the last action
+        self.u_nominal = torch.roll(self.u_nominal, shifts=-1, dims=1)  # Shift left by 1 time step
 
         return action
 
@@ -151,10 +147,11 @@ class MPPI(ControllerBase):
                 val = kwargs[key]
                 # For tensors, check shape if possible
                 if key in ['sigma', 'u_min', 'u_max']:
+                    shape = (self.num_envs, self.action_dim)
                     val = torch.as_tensor(val, dtype=torch.float32, device=self.device)
                     if val.dim() == 0:
-                        val = torch.full((self.action_dim,), float(val), device=self.device)
-                    assert val.shape == (self.action_dim,), \
+                        val = torch.full(shape, float(val), device=self.device)
+                    assert val.shape == shape, \
                         f"Shape mismatch for {key}: {getattr(self, key).shape} != {val.shape}"
                     setattr(self, key, val)
                 elif key == 'alpha':
@@ -176,11 +173,11 @@ class MPPI(ControllerBase):
         """
         # Resetting the plant is handled by the ControllerBase's reset method if called.
         super().reset(env_ids) # Call base class reset, which handles plant.reset if plant is set.
-        
+
         # This reset focuses on MPPI's internal state (u_nominal).
         if env_ids is None or len(env_ids) == self.num_envs:
             env_ids = self._ALL_INDICES # Reset all environments
-        
+
         self.u_nominal[env_ids] = torch.zeros(len(env_ids), self.T, self.action_dim, device=self.device)
 
     def _sample_control_noise(self) -> torch.Tensor:
@@ -195,9 +192,9 @@ class MPPI(ControllerBase):
         """
         # Sample noise: (num_envs, K, T, action_dim)
         # Each environment gets K independent noise sequences for its T-step horizon.
-        # self.sigma is (action_dim,), needs to be broadcast.
+        # self.sigma is (num_envs, action_dim), needs to be broadcast.
         noise = torch.randn(self.num_envs, self.K, self.T, self.action_dim, device=self.device) * \
-                self.sigma.view(1, 1, 1, -1) # Broadcast sigma
+                self.sigma.view(self.num_envs, 1, 1, self.action_dim)
         return noise
 
     def _compute_rollout_cost(self, current_state: torch.Tensor, u_perturbed: torch.Tensor, reference: torch.Tensor = None) -> torch.Tensor:
@@ -239,7 +236,8 @@ class MPPI(ControllerBase):
 
         # Simulate the rollouts using the perturbed control sequences
         state_rollouts = plant.rollout(u=u_for_sim)  # Shape: (num_envs * K, T, state_dim)
-        state_rollouts = state_rollouts.reshape(num_envs, K, T, state_dim) # Reshape back to (num_envs, K, T, state_dim)
+        state_rollouts = state_rollouts.reshape(num_envs, K, T, state_dim)  # Reshape back to (num_envs, K, T, state_dim)
+        self.state_rollouts = state_rollouts  # Store for potential future use
 
         # Call the cost function (defined in mppi_cfg.py)
         # Expected input shapes:
@@ -275,3 +273,28 @@ class MPPI(ControllerBase):
         sum_exp = torch.sum(exp_terms, dim=1, keepdim=True) # Shape: (num_envs, 1)
         weights = exp_terms / (sum_exp + 1e-9) # Add epsilon for numerical stability
         return weights
+
+    def _expand_shape(self, tensor: torch.Tensor) -> torch.Tensor:
+        """
+        Expands the shape of a tensor to match the expected dimensions (num_envs, action_dim).
+
+        Args:
+            tensor (torch.Tensor): The input tensor to expand.
+        Returns:
+            torch.Tensor: The expanded tensor with shape (num_envs, action_dim).
+        """
+        if tensor.dim() == 0:
+            # Scalar case, expand to (num_envs, action_dim)
+            return tensor.expand(self.num_envs, self.action_dim)
+        elif tensor.dim() == 1:
+            # 1D tensor case, must match action_dim
+            assert tensor.shape[0] == self.action_dim, \
+                f"Expected tensor shape ({self.action_dim},), got {tensor.shape}"
+            return tensor.unsqueeze(0).expand(self.num_envs, -1)
+        elif tensor.dim() == 2:
+            # 2D tensor case, must match (num_envs, action_dim)
+            assert tensor.shape == (self.num_envs, self.action_dim), \
+                f"Expected tensor shape ({self.num_envs}, {self.action_dim}), got {tensor.shape}"
+            return tensor
+        else:
+            raise ValueError(f"Unsupported tensor shape: {tensor.shape}")
